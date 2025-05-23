@@ -6,14 +6,35 @@ import ProtectedRoute from '@/app/components/auth/ProtectedRoute';
 import { useAuth } from '@/app/components/auth/AuthProvider';
 import Link from 'next/link';
 
-// Define a more specific type for what's fetched, matching BookCardProps needs
-interface UserBookData extends BookCardProps {
-  // any additional fields if needed, but BookCardProps should cover display
+// Define the expected structure of an author object from the database
+interface AuthorInfo {
+  name: string;
+  // Add other author properties if available, e.g., birth_year, death_year
+}
+
+// Define the structure of the 'public_books' object when joined
+interface PublicBookJoined {
+  id: number;
+  gutenberg_id?: number;
+  title: string;
+  authors?: AuthorInfo[];
+  subjects?: string[];
+  cover_image_url?: string;
+}
+
+// Define the structure of the items returned by the Supabase query
+interface FetchedUserBook {
+  id: number; // This is the user_books.id
+  public_book_db_id: number;
+  added_at: string;
+  reading_progress_percent?: number;
+  is_pinned?: boolean;
+  public_books: PublicBookJoined | null; // The joined public_book data can be null
 }
 
 export default function LibraryPage() {
   const { session, supabase, isLoading: authLoading } = useAuth();
-  const [userBooks, setUserBooks] = useState<UserBookData[]>([]);
+  const [userBooks, setUserBooks] = useState<BookCardProps[]>([]); // Use BookCardProps directly for state
   const [isLoadingBooks, setIsLoadingBooks] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,12 +44,10 @@ export default function LibraryPage() {
         setIsLoadingBooks(true);
         setError(null);
         try {
-          // Fetch user_books entries for the current user
-          // We need to join with public_books to get title, author, etc.
           const { data, error: dbError } = await supabase
             .from('user_books')
             .select(`
-              id, 
+              id,
               public_book_db_id,
               added_at,
               reading_progress_percent,
@@ -39,36 +58,42 @@ export default function LibraryPage() {
                 title,
                 authors,
                 subjects,
-                cover_image_url 
+                cover_image_url
               )
             `)
             .eq('user_id', session.user.id)
-            .order('added_at', { ascending: false });
+            .order('added_at', { ascending: false })
+            .returns<FetchedUserBook[]>(); // Add .returns<FetchedUserBook[]>() to type the response
 
           if (dbError) {
             throw dbError;
           }
 
           if (data) {
-            const formattedBooks: UserBookData[] = data.map((item: any) => ({
-              id: item.public_books.id.toString(), // Using public_book.id as the primary ID for the card
-              title: item.public_books.title,
-              author: item.public_books.authors?.map((a: any) => a.name).join(', ') || 'Unknown Author',
-              // Genre might not be directly on public_books, you might need to adapt
-              // For now, let's use subjects as a proxy or a fixed value if genre isn't there.
-              genre: item.public_books.subjects?.[0] || 'N/A', 
-              readingProgress: item.reading_progress_percent || 0,
-              isPinned: item.is_pinned || false,
-              coverImageUrl: item.public_books.cover_image_url,
-              // Ensure all fields required by BookCardProps are mapped
-            }));
+            // Filter out items where public_books might be null (e.g., due to a failed join or bad data)
+            // And then map, ensuring item.public_books is treated as non-null within the map
+            const formattedBooks: BookCardProps[] = data
+              .filter((item): item is FetchedUserBook & { public_books: PublicBookJoined } => item.public_books !== null)
+              .map((item) => ({
+                id: item.public_books.id.toString(), // item.public_books is now PublicBookJoined (non-null)
+                title: item.public_books.title,
+                author: item.public_books.authors?.map((a) => a.name).join(', ') || 'Unknown Author',
+                genre: item.public_books.subjects?.[0] || 'N/A',
+                readingProgress: item.reading_progress_percent || 0,
+                isPinned: item.is_pinned || false,
+                coverImageUrl: item.public_books.cover_image_url,
+              }));
             setUserBooks(formattedBooks);
           } else {
             setUserBooks([]);
           }
-        } catch (e: any) {
+        } catch (e: unknown) { // Change type from any to unknown
           console.error("Error fetching user books:", e);
-          setError(e.message || 'Failed to fetch books.');
+          if (e instanceof Error) { // Type guard for Error object
+            setError(e.message);
+          } else {
+            setError('Failed to fetch books due to an unexpected error.');
+          }
           setUserBooks([]);
         } finally {
           setIsLoadingBooks(false);
@@ -77,11 +102,10 @@ export default function LibraryPage() {
 
       fetchUserBooks();
     } else if (!authLoading && !session) {
-      // If auth is done loading and there's no session, no need to fetch
       setIsLoadingBooks(false);
       setUserBooks([]);
     }
-  }, [session, supabase, authLoading]); // Depend on session, supabase client, and authLoading status
+  }, [session, supabase, authLoading]);
 
   if (authLoading || isLoadingBooks) {
     return (
