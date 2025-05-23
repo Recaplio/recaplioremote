@@ -27,14 +27,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null); // State for profile
   const [isLoading, setIsLoading] = useState(true); // Start true for initial load
 
+  console.log('[AuthProvider] Initializing, isLoading:', isLoading);
+
   useEffect(() => {
-    // No setIsLoading(true) here, fetchProfileAndSetSession will handle it.
+    console.log('[AuthProvider] useEffect triggered');
 
     const fetchProfileAndSetSession = async (currentSession: Session | null) => {
-      setIsLoading(true); // Set loading true at the start of processing any session state
+      console.log('[AuthProvider] fetchProfileAndSetSession called with session:', currentSession?.user?.id);
+      setIsLoading(true);
+      console.log('[AuthProvider] setIsLoading(true)');
       if (currentSession?.user) {
         try {
-          // Fetch profile
+          console.log('[AuthProvider] Fetching profile for user:', currentSession.user.id);
           const { data: profile, error } = await supabase
             .from('profiles')
             .select('*')
@@ -42,46 +46,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             .single();
 
           if (error) {
-            console.error('Error fetching profile:', error);
+            console.error('[AuthProvider] Error fetching profile:', error);
             setUserProfile(null);
           } else {
+            console.log('[AuthProvider] Profile fetched:', profile);
             setUserProfile(profile as UserProfile);
           }
         } catch (e) {
-          console.error('Exception fetching profile:', e);
+          console.error('[AuthProvider] Exception fetching profile:', e);
           setUserProfile(null);
         }
       } else {
-        setUserProfile(null); // Clear profile if no user
+        console.log('[AuthProvider] No user in current session, clearing profile.');
+        setUserProfile(null);
       }
       setSession(currentSession);
-      setIsLoading(false); // Set loading false after all processing for this session state is done
+      console.log('[AuthProvider] Session state updated.');
+      setIsLoading(false);
+      console.log('[AuthProvider] setIsLoading(false)');
     };
 
-    // Get initial session
-    // setIsLoading(true); // Set loading before the async call
+    console.log('[AuthProvider] Setting up initial session fetch and auth state listener.');
     supabase.auth.getSession().then(({ data: { session: initialSession } , error }) => {
-      if (error) {
-        console.error("Error getting initial session:", error);
-      }
-      fetchProfileAndSetSession(initialSession); // This will set isLoading appropriately
+      console.log('[AuthProvider] getSession completed. User ID:', initialSession?.user?.id, 'Error:', error);
+      fetchProfileAndSetSession(initialSession);
     }).catch(error => {
-        console.error("Error handling initial session promise:", error);
-        fetchProfileAndSetSession(null); // Ensure loading state is handled on error too
+        console.error('[AuthProvider] Error in getSession promise:', error);
+        fetchProfileAndSetSession(null);
     });
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
-        // fetchProfileAndSetSession will handle isLoading states internally
+        console.log('[AuthProvider] onAuthStateChange triggered. Event:', _event, 'New User ID:', newSession?.user?.id);
         await fetchProfileAndSetSession(newSession);
       }
     );
 
     return () => {
+      console.log('[AuthProvider] Unsubscribing from auth state changes.');
       subscription?.unsubscribe();
     };
-  }, [supabase]); // Added supabase to dependency array
+  }, [supabase]);
 
   return (
     <AuthContext.Provider value={{ supabase, session, userProfile, isLoading }}>

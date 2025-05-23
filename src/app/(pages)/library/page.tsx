@@ -38,9 +38,14 @@ export default function LibraryPage() {
   const [isLoadingBooks, setIsLoadingBooks] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  console.log('[LibraryPage] Component rendered. authLoading:', authLoading, 'isLoadingBooks:', isLoadingBooks, 'Session user ID:', session?.user?.id);
+
   useEffect(() => {
+    console.log('[LibraryPage] useEffect triggered. Deps - authLoading:', authLoading, 'Session user ID:', session?.user?.id, 'Supabase defined:', !!supabase);
     if (session?.user && supabase) {
+      console.log('[LibraryPage] Condition 1 MET: session.user and supabase exist. Fetching books...');
       const fetchUserBooks = async () => {
+        console.log('[LibraryPage] fetchUserBooks called.');
         setIsLoadingBooks(true);
         setError(null);
         try {
@@ -63,7 +68,9 @@ export default function LibraryPage() {
             `)
             .eq('user_id', session.user.id)
             .order('added_at', { ascending: false })
-            .returns<FetchedUserBook[]>(); // Add .returns<FetchedUserBook[]>() to type the response
+            .returns<FetchedUserBook[]>();
+
+          console.log('[LibraryPage] Supabase query result - data:', data, 'error:', dbError);
 
           if (dbError) {
             throw dbError;
@@ -84,12 +91,14 @@ export default function LibraryPage() {
                 coverImageUrl: item.public_books.cover_image_url,
               }));
             setUserBooks(formattedBooks);
+            console.log('[LibraryPage] Books formatted and set to state:', formattedBooks);
           } else {
             setUserBooks([]);
+            console.log('[LibraryPage] No data from query, setting empty books array.');
           }
-        } catch (e: unknown) { // Change type from any to unknown
-          console.error("Error fetching user books:", e);
-          if (e instanceof Error) { // Type guard for Error object
+        } catch (e: unknown) {
+          console.error("[LibraryPage] Error fetching user books:", e);
+          if (e instanceof Error) {
             setError(e.message);
           } else {
             setError('Failed to fetch books due to an unexpected error.');
@@ -97,17 +106,22 @@ export default function LibraryPage() {
           setUserBooks([]);
         } finally {
           setIsLoadingBooks(false);
+          console.log('[LibraryPage] fetchUserBooks finished, isLoadingBooks set to false.');
         }
       };
 
       fetchUserBooks();
     } else if (!authLoading && !session) {
+      console.log('[LibraryPage] Condition 2 MET: Not authLoading and no session. Setting isLoadingBooks false.');
       setIsLoadingBooks(false);
       setUserBooks([]);
+    } else {
+      console.log('[LibraryPage] useEffect conditions NOT MET. authLoading:', authLoading, 'Session user ID:', session?.user?.id);
     }
   }, [session, supabase, authLoading]);
 
   if (authLoading || isLoadingBooks) {
+    console.log('[LibraryPage] Render: Loading state. authLoading:', authLoading, 'isLoadingBooks:', isLoadingBooks);
     return (
       <ProtectedRoute> {/* Ensures redirect if not logged in after authLoading */}
         <div className="min-h-[calc(100vh-200px)] flex items-center justify-center">
