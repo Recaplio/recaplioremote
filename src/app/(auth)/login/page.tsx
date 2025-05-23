@@ -61,6 +61,9 @@ export default function LoginPage() {
     setMessage('');
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`, 
+      },
     });
 
     if (oauthError) {

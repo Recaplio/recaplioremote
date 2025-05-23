@@ -80,12 +80,9 @@ export default function SignupPage() {
     setMessage('');
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
-      // options: {
-      //   redirectTo: `${window.location.origin}/auth/callback`,
-      //   // For sign-up, you might want to pass additional data if allowed and needed by your trigger,
-      //   // though typically OAuth provides enough user metadata.
-      //   // queryParams: { full_name: 'Provided by OAuth' } // Example, but usually not needed for Google
-      // },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
 
     if (oauthError) {
