@@ -25,14 +25,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const supabase = createClient();
   const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null); // State for profile
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Start true for initial load
 
   useEffect(() => {
-    setIsLoading(true);
+    // No setIsLoading(true) here, fetchProfileAndSetSession will handle it.
 
     const fetchProfileAndSetSession = async (currentSession: Session | null) => {
+      setIsLoading(true); // Set loading true at the start of processing any session state
       if (currentSession?.user) {
         try {
+          // Fetch profile
           const { data: profile, error } = await supabase
             .from('profiles')
             .select('*')
@@ -53,24 +55,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUserProfile(null); // Clear profile if no user
       }
       setSession(currentSession);
-      setIsLoading(false);
+      setIsLoading(false); // Set loading false after all processing for this session state is done
     };
 
+    // Get initial session
+    // setIsLoading(true); // Set loading before the async call
+    supabase.auth.getSession().then(({ data: { session: initialSession } , error }) => {
+      if (error) {
+        console.error("Error getting initial session:", error);
+      }
+      fetchProfileAndSetSession(initialSession); // This will set isLoading appropriately
+    }).catch(error => {
+        console.error("Error handling initial session promise:", error);
+        fetchProfileAndSetSession(null); // Ensure loading state is handled on error too
+    });
 
-    const initialFetch = async () => {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) {
-            console.error("Error getting initial session:", error);
-        }
-        await fetchProfileAndSetSession(data.session);
-    };
-
-    initialFetch();
-
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
-        // When auth state changes, fetch profile for the new session
-        // setIsLoading(true); // Optionally set loading true while profile might be fetching
+        // fetchProfileAndSetSession will handle isLoading states internally
         await fetchProfileAndSetSession(newSession);
       }
     );
@@ -78,7 +81,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       subscription?.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase]); // Added supabase to dependency array
 
   return (
     <AuthContext.Provider value={{ supabase, session, userProfile, isLoading }}>
