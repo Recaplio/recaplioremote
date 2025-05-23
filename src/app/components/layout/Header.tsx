@@ -23,7 +23,7 @@ const Header = () => {
   };
 
   // Base navigation links
-  let navLinks = [
+  const navLinks = [
     { href: "/", label: "Dashboard" },
     { href: "/library", label: "Library" },
     { href: "/discover", label: "Discover" },
