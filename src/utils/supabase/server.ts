@@ -22,7 +22,7 @@ export function createSupabaseServerClient() {
             // Middleware should handle refreshing session cookies.
             cookieStore.set({ name, value, ...options });
           } catch (_error) {
-            // console.warn('Supabase server client: Failed to set cookie', _error); 
+            console.warn('Supabase server client: Failed to set cookie', _error);
           }
         },
         remove(name: string, options: CookieOptions) {
@@ -31,7 +31,7 @@ export function createSupabaseServerClient() {
             // Similar to `set`, it might throw in certain contexts.
             cookieStore.delete({ name, ...options });
           } catch (_error) {
-            // console.warn('Supabase server client: Failed to delete cookie', _error);
+            console.warn('Supabase server client: Failed to delete cookie', _error);
           }
         },
       },

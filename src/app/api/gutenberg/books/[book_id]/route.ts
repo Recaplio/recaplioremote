@@ -16,6 +16,13 @@ interface GetParams {
   };
 }
 
+// Interface for author object from Gutendex
+interface GutendexAuthor {
+  name: string;
+  birth_year: number | null;
+  death_year: number | null;
+}
+
 function escapeRegExp(string: string): string {
   return string.replace(/[.*+?^${}()|[\\\\]\\\\]/g, '\\\\$&');
 }
@@ -209,7 +216,11 @@ export async function GET(request: NextRequest, { params }: GetParams) {
     const transformedBook = {
       id: bookData.id,
       title: bookData.title,
-      authors: bookData.authors.map((a: any) => ({ name: a.name, birth_year: a.birth_year, death_year: a.death_year })),
+      authors: bookData.authors.map((a: GutendexAuthor) => ({
+        name: a.name, 
+        birth_year: a.birth_year, 
+        death_year: a.death_year 
+      })),
       subjects: bookData.subjects,
       bookshelves: bookData.bookshelves,
       languages: bookData.languages,

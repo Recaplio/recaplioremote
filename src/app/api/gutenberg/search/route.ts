@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-interface AuthorInput {
-  name: string;
-  birth_year: number | null;
-  death_year: number | null;
-}
-
 // Type for individual author object from Gutendex results
 interface GutendexAuthor {
   name: string;
