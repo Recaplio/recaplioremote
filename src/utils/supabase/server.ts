@@ -21,8 +21,8 @@ export function createSupabaseServerClient() {
             // It might throw if called from a Server Component during static rendering.
             // Middleware should handle refreshing session cookies.
             cookieStore.set({ name, value, ...options });
-          } catch (error) {
-            // console.warn('Supabase server client: Failed to set cookie', error); 
+          } catch (_error) {
+            // console.warn('Supabase server client: Failed to set cookie', _error); 
           }
         },
         remove(name: string, options: CookieOptions) {
@@ -30,8 +30,8 @@ export function createSupabaseServerClient() {
             // The `delete` method is called by `createServerClient` (e.g., on sign out).
             // Similar to `set`, it might throw in certain contexts.
             cookieStore.delete({ name, ...options });
-          } catch (error) {
-            // console.warn('Supabase server client: Failed to delete cookie', error);
+          } catch (_error) {
+            // console.warn('Supabase server client: Failed to delete cookie', _error);
           }
         },
       },

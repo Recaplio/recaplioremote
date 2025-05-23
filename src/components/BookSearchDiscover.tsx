@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, FormEvent, ChangeEvent } from 'react';
-import { createSupabaseBrowserClient } from '../utils/supabase/client'; // Ensure this path is correct
+// import { createSupabaseBrowserClient } from '../utils/supabase/client'; // Ensure this path is correct
 
 interface Author {
   name: string;
@@ -23,7 +23,7 @@ interface SearchResult {
 }
 
 export default function BookSearchDiscover() {
-  const supabase = createSupabaseBrowserClient(); // For client-side API calls if needed, or general Supabase interactions
+  // const supabase = createSupabaseBrowserClient(); // Commented out as unused
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [results, setResults] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -45,7 +45,7 @@ export default function BookSearchDiscover() {
     try {
       const response = await fetch(`/api/public-books/search?searchTerm=${encodeURIComponent(searchTerm)}`);
       if (!response.ok) {
-        const errData = await response.json();
+        const errData = await response.json(); // errData could be any shape
         throw new Error(errData.error || `Error: ${response.status}`);
       }
       const data: SearchResult = await response.json();
@@ -53,9 +53,10 @@ export default function BookSearchDiscover() {
       if (!data.books || data.books.length === 0) {
         setError('No books found matching your search criteria.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) { // Changed to unknown
       console.error('Search failed:', err);
-      setError(err.message || 'Failed to fetch search results.');
+      const message = (err instanceof Error) ? err.message : 'Failed to fetch search results.';
+      setError(message);
       setResults([]);
     }
     setIsLoading(false);
@@ -77,7 +78,7 @@ export default function BookSearchDiscover() {
         body: JSON.stringify({ public_book_db_id: bookDbId }),
       });
 
-      const data = await response.json();
+      const data = await response.json(); // data could be any shape depending on success/error
 
       if (!response.ok) {
         if (response.status === 401) { // Unauthorized
@@ -93,9 +94,10 @@ export default function BookSearchDiscover() {
       }
       setAddBookStatus(prev => ({ ...prev, [bookDbId]: 'Added!' }));
 
-    } catch (err: any) {
+    } catch (err: unknown) { // Changed to unknown
       console.error('Failed to add book:', err);
-      setError(err.message || 'An unexpected error occurred while adding the book.');
+      const message = (err instanceof Error) ? err.message : 'An unexpected error occurred while adding the book.';
+      setError(message);
       setAddBookStatus(prev => ({ ...prev, [bookDbId]: 'Failed' }));
     }
   };

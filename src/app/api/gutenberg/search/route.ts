@@ -1,5 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+interface AuthorInput {
+  name: string;
+  birth_year: number | null;
+  death_year: number | null;
+}
+
+// Type for individual author object from Gutendex results
+interface GutendexAuthor {
+  name: string;
+  birth_year: number | null;
+  death_year: number | null;
+}
+
+// Type for the book object from Gutendex results
+interface GutendexBook {
+  id: number;
+  title: string;
+  authors: GutendexAuthor[];
+  subjects: string[];
+  bookshelves: string[];
+  languages: string[];
+  copyright: boolean | null;
+  media_type: string;
+  formats: Record<string, string>;
+  download_count: number;
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const query = searchParams.get('query');
@@ -42,22 +69,24 @@ export async function GET(request: NextRequest) {
     const data = await response.json();
 
     // Transform data to a more usable format for the frontend if necessary
-    const books = data.results.map((book: any) => ({
+    const books = data.results.map((book: GutendexBook) => ({
       id: book.id,
       title: book.title,
-      authors: book.authors.map((a: any) => a.name).join(', '),
+      authors: book.authors.map((a: GutendexAuthor) => a.name).join(', '),
       subjects: book.subjects.join(', '),
       bookshelves: book.bookshelves.join(', '),
       languages: book.languages.join(', '),
+      copyright: book.copyright,
+      media_type: book.media_type,
+      formats: book.formats,
       download_count: book.download_count,
-      formats: book.formats, // Contains links to various formats like text/plain, application/epub+zip etc.
     }));
 
     return NextResponse.json({ books, count: data.count, next: data.next, previous: data.previous });
-  } catch (error) {
-    console.error('Error fetching from Gutendex:', error);
+  } catch (err: unknown) {
+    console.error('Error fetching from Gutendex:', err);
     return NextResponse.json(
-      { error: 'Internal server error while fetching from Gutendex' },
+      { error: 'Internal server error while fetching from Gutendex', details: (err instanceof Error) ? err.message : String(err) },
       { status: 500 }
     );
   }

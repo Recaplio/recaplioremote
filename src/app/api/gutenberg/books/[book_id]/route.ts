@@ -23,7 +23,7 @@ function escapeRegExp(string: string): string {
 function cleanTextV7(rawText: string, title: string): string {
   let text = rawText;
   const titleEscaped = escapeRegExp(title);
-  let processingLog = []; // For debugging what happens
+  const processingLog = []; // Changed to const
 
   processingLog.push(`Original length: ${text.length}`);
 
@@ -335,12 +335,12 @@ export async function GET(request: NextRequest, { params }: GetParams) {
             // chunksSample: chunks.slice(0, 1) // Optionally reduce sample or remove for production
           });
 
-        } catch (dbError: any) {
+        } catch (dbError: unknown) {
           console.error('Database operation failed:', dbError);
           return NextResponse.json(
             { 
               error: 'Failed to store book and/or chunks in database.',
-              details: dbError.message,
+              details: (dbError instanceof Error) ? dbError.message : String(dbError),
               bookId: transformedBook.id,
               title: transformedBook.title,
             },
@@ -348,10 +348,10 @@ export async function GET(request: NextRequest, { params }: GetParams) {
           );
         }
 
-      } catch (textError) {
+      } catch (textError: unknown) {
         console.error(`Error fetching book text from ${plainTextUrl}:`, textError);
         return NextResponse.json(
-          { error: `Internal server error while fetching book text from ${plainTextUrl}` },
+          { error: `Internal server error while fetching book text from ${plainTextUrl}`, details: (textError instanceof Error) ? textError.message : String(textError) },
           { status: 500 }
         );
       }
@@ -360,10 +360,10 @@ export async function GET(request: NextRequest, { params }: GetParams) {
       return NextResponse.json(transformedBook);
     }
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`Error processing book ${book_id}:`, error);
     return NextResponse.json(
-      { error: `Internal server error while processing book ${book_id}` },
+      { error: `Internal server error while processing book ${book_id}`, details: (error instanceof Error) ? error.message : String(error) },
       { status: 500 }
     );
   }

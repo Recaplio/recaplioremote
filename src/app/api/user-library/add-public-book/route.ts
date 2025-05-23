@@ -70,13 +70,13 @@ export async function POST(request: NextRequest) {
       { status: 201 } // 201 Created
     );
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Add to library API error:', err);
-    if (err.name === 'SyntaxError') { // JSON parsing error
+    if (err instanceof SyntaxError && err.message.includes('JSON')) {
         return NextResponse.json({ error: 'Invalid request body. Expected JSON.'}, { status: 400 });
     }
     return NextResponse.json(
-      { error: 'An unexpected error occurred.', details: err.message },
+      { error: 'An unexpected error occurred.', details: (err instanceof Error) ? err.message : String(err) },
       { status: 500 }
     );
   }

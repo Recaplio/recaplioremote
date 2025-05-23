@@ -37,10 +37,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ books: books || [] });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Search API error:', err);
     return NextResponse.json(
-      { error: 'An unexpected error occurred.', details: err.message },
+      { error: 'An unexpected error occurred.', details: (err instanceof Error) ? err.message : String(err) },
       { status: 500 }
     );
   }
