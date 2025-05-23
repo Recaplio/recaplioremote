@@ -13,6 +13,7 @@ export function createSupabaseServerClient() {
     {
       cookies: {
         get(name: string) {
+          // @ts-expect-error Property 'get' does not exist on type 'Promise<ReadonlyRequestCookies>'.
           return cookieStore.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
@@ -20,6 +21,7 @@ export function createSupabaseServerClient() {
             // The `set` method is called by `createServerClient` to persist session data.
             // It might throw if called from a Server Component during static rendering.
             // Middleware should handle refreshing session cookies.
+            // @ts-expect-error Property 'set' does not exist on type 'Promise<ReadonlyRequestCookies>'.
             cookieStore.set({ name, value, ...options });
           } catch (_error) {
             console.warn('Supabase server client: Failed to set cookie', _error);
@@ -29,6 +31,7 @@ export function createSupabaseServerClient() {
           try {
             // The `delete` method is called by `createServerClient` (e.g., on sign out).
             // Similar to `set`, it might throw in certain contexts.
+            // @ts-expect-error Property 'delete' does not exist on type 'Promise<ReadonlyRequestCookies>'.
             cookieStore.delete({ name, ...options });
           } catch (_error) {
             console.warn('Supabase server client: Failed to delete cookie', _error);
