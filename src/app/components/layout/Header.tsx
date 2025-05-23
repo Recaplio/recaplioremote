@@ -2,18 +2,47 @@
 
 import Link from 'next/link';
 import { useState } from 'react'; // Import useState
+import { useAuth } from '@/app/components/auth/AuthProvider'; // Import useAuth
+import { useRouter } from 'next/navigation'; // Import useRouter
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { session, supabase, userProfile } = useAuth(); // Get session, supabase client, and userProfile
+  const router = useRouter();
 
-  const navLinks = [
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Error signing out:', error);
+      // Optionally show an error message to the user
+    } else {
+      router.push('/login'); // Redirect to login page after sign out
+      router.refresh(); // Refresh to update auth state across app
+    }
+    setIsMobileMenuOpen(false); // Close mobile menu if open
+  };
+
+  // Base navigation links
+  let navLinks = [
     { href: "/", label: "Dashboard" },
     { href: "/library", label: "Library" },
     { href: "/discover", label: "Discover" },
     { href: "/settings", label: "Settings" },
     { href: "/plans", label: "View Plans", className: "font-semibold text-yellow-400" },
-    { href: "/login", label: "Login" },
   ];
+
+  // Add Login/Signup or Profile/Logout links based on session state
+  if (session) {
+    // Use full_name from profile if available, otherwise fallback to email
+    const profileLabel = userProfile?.full_name 
+      ? userProfile.full_name 
+      : (session.user.email ? session.user.email.split('@')[0] : 'Profile');
+    navLinks.push({ href: "/profile", label: `Profile (${profileLabel})` });
+    // The logout button is handled separately for the onClick handler
+  } else {
+    navLinks.push({ href: "/login", label: "Login" });
+    navLinks.push({ href: "/signup", label: "Sign Up" });
+  }
 
   return (
     <header className="bg-gray-800 text-white p-4 shadow-md">
@@ -31,6 +60,13 @@ const Header = () => {
               </Link>
             </li>
           ))}
+          {session && (
+            <li>
+              <button onClick={handleSignOut} className="hover:text-gray-300 transition-colors">
+                Logout
+              </button>
+            </li>
+          )}
         </ul>
 
         {/* Mobile Menu Button */}
@@ -64,6 +100,16 @@ const Header = () => {
                 </Link>
               </li>
             ))}
+            {session && (
+              <li>
+                <button 
+                  onClick={handleSignOut} 
+                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-gray-600 hover:text-white transition-colors"
+                >
+                  Logout
+                </button>
+              </li>
+            )}
           </ul>
         </div>
       )}
