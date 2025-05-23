@@ -78,12 +78,15 @@ export default function SignupPage() {
   const handleOAuthSignUp = async (provider: 'google') => {
     setError('');
     setMessage('');
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+    console.log('Attempting OAuth sign up with:', provider);
+    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
+
+    console.log('OAuth sign up response:', { data, oauthError });
 
     if (oauthError) {
       setError(`Error signing up with ${provider}: ${oauthError.message}`);
