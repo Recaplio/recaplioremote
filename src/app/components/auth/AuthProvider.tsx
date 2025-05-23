@@ -33,27 +33,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     console.log('[AuthProvider] useEffect triggered');
 
     const fetchProfileAndSetSession = async (currentSession: Session | null) => {
-      console.log('[AuthProvider] fetchProfileAndSetSession called with session:', currentSession?.user?.id);
+      console.log('[AuthProvider] fetchProfileAndSetSession called. User ID:', currentSession?.user?.id, 'Current isLoading state:', isLoading);
       setIsLoading(true);
-      console.log('[AuthProvider] setIsLoading(true)');
       if (currentSession?.user) {
         try {
-          console.log('[AuthProvider] Fetching profile for user:', currentSession.user.id);
-          const { data: profile, error } = await supabase
+          console.log('[AuthProvider] TRYING to fetch profile for user:', currentSession.user.id);
+          const { data: profile, error: profileError, status: profileStatus } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', currentSession.user.id)
             .single();
 
-          if (error) {
-            console.error('[AuthProvider] Error fetching profile:', error);
+          console.log('[AuthProvider] Profile fetch ATTEMPTED. Status:', profileStatus, 'Error object:', profileError, 'Returned profile data:', profile);
+
+          if (profileError && profileStatus !== 406) {
+            console.error('[AuthProvider] Error fetching profile (logged with status check):', { error: profileError, status: profileStatus });
             setUserProfile(null);
-          } else {
-            console.log('[AuthProvider] Profile fetched:', profile);
+          } else if (!profileError && profile) {
+            console.log('[AuthProvider] Profile fetched successfully:', profile);
             setUserProfile(profile as UserProfile);
+          } else {
+            console.log('[AuthProvider] No profile data returned or a non-blocking error occurred (e.g., no profile row for user), setting profile to null. Error:', profileError);
+            setUserProfile(null);
           }
-        } catch (e) {
-          console.error('[AuthProvider] Exception fetching profile:', e);
+        } catch (e: unknown) {
+          console.error('[AuthProvider] CATCH BLOCK for exception during profile fetch:', e);
           setUserProfile(null);
         }
       } else {
@@ -61,9 +65,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUserProfile(null);
       }
       setSession(currentSession);
-      console.log('[AuthProvider] Session state updated.');
+      console.log('[AuthProvider] Session state updated. New session user ID:', currentSession?.user?.id);
       setIsLoading(false);
-      console.log('[AuthProvider] setIsLoading(false)');
+      console.log('[AuthProvider] setIsLoading(false). isLoading is now:', isLoading);
     };
 
     console.log('[AuthProvider] Setting up initial session fetch and auth state listener.');
