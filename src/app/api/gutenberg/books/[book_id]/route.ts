@@ -10,11 +10,15 @@ import { createSupabaseAdminClient } from '../../../../../utils/supabase/server'
 // If you have a specific server client utility (e.g., from @supabase/ssr for Next.js), use that.
 // const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+// Remove GetParams interface if no longer used elsewhere, or keep if other functions use it.
+// For this GET handler, we'll use inline typing for params as Next.js build expects.
+/*
 interface GetParams {
   params: {
     book_id: string;
   };
 }
+*/
 
 // Interface for author object from Gutendex
 interface GutendexAuthor {
@@ -189,8 +193,11 @@ function chunkText(text: string, maxChunkSizeChars: number = 2000, minChunkSizeC
   return chunks.filter(c => c.length > 0); // Ensure no empty chunks are returned
 }
 
-export async function GET(request: NextRequest, { params }: GetParams) {
-  const { book_id } = params;
+export async function GET(
+  request: NextRequest, 
+  { params }: { params: { book_id: string } } // Inline type for params
+) {
+  const book_id = params.book_id; // Or directly use params.book_id
   const action = request.nextUrl.searchParams.get('action');
 
   if (!book_id) {
