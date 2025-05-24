@@ -3,13 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 export function createSupabaseServerClient() {
-  // This function is intended for use in Route Handlers, Server Actions, or Server Components
-  // where `nextCookies()` is available.
   const cookieStore = cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!, // Using service role key for broader server-side capabilities
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // Use ANON_KEY for user-centric server client
     {
       cookies: {
         get(name: string) {
@@ -18,34 +16,29 @@ export function createSupabaseServerClient() {
         },
         set(name: string, value: string, options: CookieOptions) {
           try {
-            // The `set` method is called by `createServerClient` to persist session data.
-            // It might throw if called from a Server Component during static rendering.
-            // Middleware should handle refreshing session cookies.
             // @ts-expect-error Property 'set' does not exist on type 'Promise<ReadonlyRequestCookies>'.
             cookieStore.set({ name, value, ...options });
           } catch (_error) {
-            console.warn('Supabase server client: Failed to set cookie', _error);
+            // console.warn('Supabase server client: Failed to set cookie', _error);
+            // Errors can occur in Server Components if `set` is called during rendering. Ignore them.
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
-            // The `delete` method is called by `createServerClient` (e.g., on sign out).
-            // Similar to `set`, it might throw in certain contexts.
             // @ts-expect-error Property 'delete' does not exist on type 'Promise<ReadonlyRequestCookies>'.
-            cookieStore.delete({ name, ...options });
+            // To remove, you set an empty value with expiration in the past, or use delete if available and works.
+            // Supabase's library might call `remove` expecting a delete-like operation.
+            // Setting to empty with options (like path) is a common way to clear a cookie.
+            cookieStore.set({ name, value: '', ...options });
           } catch (_error) {
-            console.warn('Supabase server client: Failed to delete cookie', _error);
+            // console.warn('Supabase server client: Failed to delete cookie', _error);
+             // Errors can occur in Server Components if `remove` is called during rendering. Ignore them.
           }
         },
       },
-      // It's generally recommended to use the service_role key for server-side operations
-      // that need to bypass RLS or perform admin tasks, as we are doing here by using it.
-      // If this client were specifically for user-session-bound operations only, 
-      // you might use NEXT_PUBLIC_SUPABASE_ANON_KEY and rely on RLS.
-      // However, for an API route performing data ingestion, service_role is appropriate.
       auth: {
-        // autoRefreshToken: false, // Keep default or true for server client interacting with user sessions
-        // persistSession: true, // Keep default or true for server client interacting with user sessions
+        // autoRefreshToken: false, // Default is true, which is usually desired for sessions
+        // persistSession: true, // Default is true
       }
     }
   );
@@ -57,7 +50,6 @@ export function createSupabaseAdminClient() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('Supabase URL or Service Role Key is not defined for Admin Client');
   }
-  // Using the standard createClient for admin tasks where cookie-based sessions are not relevant.
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -68,4 +60,4 @@ export function createSupabaseAdminClient() {
       },
     }
   );
-} 
+}
