@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  reactStrictMode: false, // Temporarily disabled for diagnostics
+  reactStrictMode: true, // Explicitly enabling Strict Mode
   /* config options here */
   images: {
     remotePatterns: [
