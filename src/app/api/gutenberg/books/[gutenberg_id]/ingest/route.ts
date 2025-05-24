@@ -125,9 +125,9 @@ function chunkBookText(text: string): string[] {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { gutenberg_id: string } }
+  { params }: { params: Promise<{ gutenberg_id: string }> }
 ) {
-  const { gutenberg_id } = params;
+  const { gutenberg_id } = await params;
   const supabase = createSupabaseAdminClient();
 
   if (!gutenberg_id || isNaN(Number(gutenberg_id))) {
@@ -137,7 +137,7 @@ export async function POST(
 
   try {
     // 1. Check if book already ingested and fully processed in public_books
-    let { data: existingPublicBook, error: fetchError } = await supabase
+    const { data: existingPublicBook, error: fetchError } = await supabase
       .from('public_books')
       .select('id, raw_text_url, ingested_at, formats') // Added formats
       .eq('gutenberg_id', numericGutenbergId)
@@ -171,7 +171,7 @@ export async function POST(
     
     let publicBookDbId: number;
     let rawTextUrl: string | null = existingPublicBook?.raw_text_url || null;
-    let bookFormats: any = existingPublicBook?.formats || null; // Using any
+    const bookFormats: Record<string, string | undefined> | null = existingPublicBook?.formats || null; // More specific type for formats
     // let bookDownloadCount: number | null = null; // Removed as it was not used
 
 
@@ -324,9 +324,11 @@ export async function POST(
       { status: 201 }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Full ingestion API error:', error);
-    // Removed Tiktoken specific error check
-    return NextResponse.json({ error: 'An unexpected error occurred during ingestion.', details: error.message }, { status: 500 });
+    if (error instanceof Error) {
+      return NextResponse.json({ error: 'An unexpected error occurred during ingestion.', details: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: 'An unexpected error occurred during ingestion.' }, { status: 500 });
   }
 } 
