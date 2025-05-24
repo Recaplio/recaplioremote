@@ -82,13 +82,15 @@ export default function LibraryPage() {
             const formattedBooks: BookCardProps[] = data
               .filter((item): item is FetchedUserBook & { public_books: PublicBookJoined } => item.public_books !== null)
               .map((item) => ({
-                id: item.public_books.id.toString(), // item.public_books is now PublicBookJoined (non-null)
+                id: item.id.toString(), // CHANGED: This is now user_books.id for the card's primary ID / link
                 title: item.public_books.title,
                 author: item.public_books.authors?.map((a) => a.name).join(', ') || 'Unknown Author',
                 genre: item.public_books.subjects?.[0] || 'N/A',
                 readingProgress: item.reading_progress_percent || 0,
                 isPinned: item.is_pinned || false,
                 coverImageUrl: item.public_books.cover_image_url,
+                // We might need to pass public_book_id separately if the card still needs it for something else
+                // e.g., publicBookId: item.public_books.id.toString(), 
               }));
             setUserBooks(formattedBooks);
             console.log('[LibraryPage] Books formatted and set to state:', formattedBooks);

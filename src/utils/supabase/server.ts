@@ -1,45 +1,46 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
+import { cookies as getCookies } from 'next/headers';
 
 export function createSupabaseServerClient() {
-  const cookieStore = cookies();
+  // const cookieStore = cookies(); // Deferred to inside methods
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // Use ANON_KEY for user-centric server client
     {
       cookies: {
-        get(name: string) {
-          // @ts-expect-error Property 'get' does not exist on type 'Promise<ReadonlyRequestCookies>'.
-          return cookieStore.get(name)?.value;
+        get: async (name: string) => {
+          const cookieStore = await getCookies();
+          const cookie = cookieStore.get(name);
+          return cookie?.value;
         },
-        set(name: string, value: string, options: CookieOptions) {
+        set: async (name: string, value: string, options: CookieOptions) => {
           try {
-            // @ts-expect-error Property 'set' does not exist on type 'Promise<ReadonlyRequestCookies>'.
+            const cookieStore = await getCookies();
             cookieStore.set({ name, value, ...options });
           } catch (_error) {
             // The `set` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
-            console.warn(`[SupabaseServerClient] Error setting cookie ${name}:`, _error);
+            // console.warn(`[SupabaseServerClient] Error setting cookie ${name}:`, _error); // Silencing for now
           }
         },
-        remove(name: string, options: CookieOptions) {
+        remove: async (name: string, options: CookieOptions) => {
           try {
-            // @ts-expect-error Property 'set' does not exist on type 'Promise<ReadonlyRequestCookies>'.
-            cookieStore.set({ name, value: '', ...options });
+            const cookieStore = await getCookies();
+            cookieStore.set({ name, value: '', ...options }); // Supabase uses set empty to remove
           } catch (_error) {
             // The `delete` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
-            console.warn(`[SupabaseServerClient] Error removing cookie ${name}:`, _error);
+            // console.warn(`[SupabaseServerClient] Error removing cookie ${name}:`, _error); // Silencing for now
           }
         },
       },
       auth: {
-        // autoRefreshToken: false, // Default is true, which is usually desired for sessions
-        // persistSession: true, // Default is true
+        // autoRefreshToken: false, 
+        // persistSession: true, 
       }
     }
   );
