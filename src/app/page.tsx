@@ -15,6 +15,7 @@ import {
   MagnifyingGlassCircleIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline'; // Primarily using outline icons for a cleaner look
+import { useAuth } from '@/app/components/auth/AuthProvider'; // Corrected Import useAuth
 
 // Placeholder for a more elaborate icon or illustration component
 const ReadingIllustration = () => (
@@ -52,6 +53,8 @@ const AvatarPlaceholder = ({ initial }: { initial: string }) => (
 );
 
 export default function HomePage() {
+  const { session, isLoading } = useAuth(); // Get session and loading state
+
   const features = [
     {
       name: 'AI-Powered Summaries & Q&A',
@@ -103,6 +106,8 @@ export default function HomePage() {
     },
   ];
 
+  const getStartedLink = isLoading ? "#" : session ? "/discover" : "/signup"; // Corrected to /discover, # if loading
+
   return (
     <div className="bg-white text-gray-800 overflow-x-hidden antialiased">
       {/* Hero Section */}
@@ -122,8 +127,16 @@ export default function HomePage() {
               </p>
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-5">
                 <Link
-                  href="/signup"
-                  className="w-full sm:w-auto inline-flex items-center justify-center px-7 py-3.5 sm:px-8 sm:py-4 border border-transparent text-base font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                  href={getStartedLink} 
+                  className={`w-full sm:w-auto inline-flex items-center justify-center px-7 py-3.5 sm:px-8 sm:py-4 border border-transparent text-base font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 ${
+                    isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  aria-disabled={isLoading}
+                  onClick={(e) => {
+                    if (isLoading) {
+                      e.preventDefault(); // Prevent navigation if loading
+                    }
+                  }}
                 >
                   Get Started for Free
                   <ArrowRightIcon className="ml-2.5 h-5 w-5" />
