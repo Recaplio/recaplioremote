@@ -19,7 +19,7 @@ interface PublicBookData {
   title: string;
   authors: AuthorData[] | null;
   gutenberg_id: number | null;
-  description?: string; // Assuming description might be in public_books
+  description?: string | null; // Allow for null description
   cover_image_url?: string; 
 }
 
@@ -73,7 +73,8 @@ export default async function BookDetailsPage({ params: rawParams }: { params: P
         title,
         authors,
         gutenberg_id,
-        cover_image_url
+        cover_image_url,
+        description
       )
     `)
     .eq("id", userBookIdNum)
@@ -192,9 +193,15 @@ export default async function BookDetailsPage({ params: rawParams }: { params: P
             
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-gray-700 mb-3">Description</h2>
-              <p className="text-gray-600 leading-relaxed">
-                Description is currently unavailable.
-              </p>
+              {book?.description ? (
+                <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
+                  {book.description}
+                </p>
+              ) : (
+                <p className="text-gray-600 leading-relaxed">
+                  Description is currently unavailable.
+                </p>
+              )}
             </section>
 
             <section>

@@ -198,6 +198,9 @@ export async function POST(
         return NextResponse.json({ error: 'No suitable plain text URL found for this book on Gutendex.' }, { status: 404 });
       }
 
+      // Construct a description from subjects
+      const descriptionFromSubjects = bookData.subjects && Array.isArray(bookData.subjects) ? bookData.subjects.join('. ') : null;
+
       // 3. Upsert into public_books (insert or update if it existed but was missing URL)
       const { data: upsertedPublicBook, error: upsertError } = await supabase
         .from('public_books')
@@ -214,6 +217,7 @@ export async function POST(
             formats: bookData.formats,
             download_count: bookData.download_count,
             raw_text_url: rawTextUrl,
+            description: descriptionFromSubjects,
             last_modified_at: new Date().toISOString(),
           },
           { 
