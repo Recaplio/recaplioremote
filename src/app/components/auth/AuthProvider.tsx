@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 
@@ -90,10 +90,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('[AuthProvider] useEffect cleanup: Unsubscribing from onAuthStateChange.');
       subscription?.unsubscribe();
     };
-  }, [supabase]); // Dependency: supabase client instance
+  }, [supabase]); // Restored [supabase] to the dependency array
+
+  const contextValue = useMemo(() => ({
+    supabase,
+    session,
+    userProfile,
+    isLoading
+  }), [supabase, session, userProfile, isLoading]);
 
   return (
-    <AuthContext.Provider value={{ supabase, session, userProfile, isLoading }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
