@@ -19,20 +19,21 @@ export function createSupabaseServerClient() {
             // @ts-expect-error Property 'set' does not exist on type 'Promise<ReadonlyRequestCookies>'.
             cookieStore.set({ name, value, ...options });
           } catch (_error) {
-            // console.warn('Supabase server client: Failed to set cookie', _error);
-            // Errors can occur in Server Components if `set` is called during rendering. Ignore them.
+            // The `set` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+            console.warn(`[SupabaseServerClient] Error setting cookie ${name}:`, _error);
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
-            // @ts-expect-error Property 'delete' does not exist on type 'Promise<ReadonlyRequestCookies>'.
-            // To remove, you set an empty value with expiration in the past, or use delete if available and works.
-            // Supabase's library might call `remove` expecting a delete-like operation.
-            // Setting to empty with options (like path) is a common way to clear a cookie.
+            // @ts-expect-error Property 'set' does not exist on type 'Promise<ReadonlyRequestCookies>'.
             cookieStore.set({ name, value: '', ...options });
           } catch (_error) {
-            // console.warn('Supabase server client: Failed to delete cookie', _error);
-             // Errors can occur in Server Components if `remove` is called during rendering. Ignore them.
+            // The `delete` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+            console.warn(`[SupabaseServerClient] Error removing cookie ${name}:`, _error);
           }
         },
       },

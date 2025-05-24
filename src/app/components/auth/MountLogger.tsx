@@ -13,7 +13,7 @@ export default function MountLogger({ name }: { name: string }) {
     return () => {
       console.log(`%c[MountLogger:${name}] INSTANCE ${instance} UNMOUNTING (useEffect [] cleanup)`, 'color: purple; font-weight: bold;');
     };
-  }, []); // Empty dependency array means this runs once on mount and cleanup on unmount
+  }, [name, instance]); // Added name and instance to dependency array
 
   return null; // This component doesn't render anything visible
 } 
