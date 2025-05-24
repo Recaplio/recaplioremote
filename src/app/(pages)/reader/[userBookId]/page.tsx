@@ -14,14 +14,15 @@ interface ReaderPageParams {
 }
 
 interface ReaderPageProps {
-  params: ReaderPageParams;
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<ReaderPageParams>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 // More generic Author type for now to avoid issues with Supabase JSONB typing
 interface AuthorData {
   name: string;
-  [key: string]: any; // Allow other properties that might exist
+  birth_year?: number; // Made more specific
+  death_year?: number; // Made more specific
 }
 
 interface PublicBookShape {
@@ -53,8 +54,9 @@ const getCurrentChunkContent = (chunks: BookChunk[], currentChunkIndex: number):
   return chunk?.content || "Error loading chunk content.";
 };
 
-export default async function ReaderPage({ params: rawParams, searchParams }: ReaderPageProps) {
+export default async function ReaderPage({ params: rawParams, searchParams: rawSearchParams }: ReaderPageProps) {
   const params = await rawParams;
+  const searchParams = await rawSearchParams;
   console.log(`[ReaderPage] Rendering for userBookId: ${params.userBookId}, searchParams:`, searchParams);
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -126,17 +128,7 @@ export default async function ReaderPage({ params: rawParams, searchParams }: Re
     console.error(`[ReaderPage] Error fetching chunks for public_book ${publicBookDetails.id}:`, chunksError);
   }
 
-  if (chunksError) {
-    return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <h1 className="text-2xl font-bold text-red-600 mb-4">Error Loading Book Content</h1>
-        <p className="text-gray-700 mb-2">Could not load the content for &quot;{publicBookDetails.title || 'this book'}&quot;.</p>
-        <Link href="/library" className="text-indigo-600 hover:underline">Return to Library</Link>
-      </div>
-    );
-  }
-
-  if (!bookChunks || bookChunks.length === 0) {
+  if (!bookChunks || bookChunks.length === 0 && !chunksError) {
     console.log(`[ReaderPage] No chunks found for public_book_id ${publicBookDetails.id}. Displaying no content message.`);
     return (
       <div className="container mx-auto px-4 py-8">
@@ -200,8 +192,9 @@ export default async function ReaderPage({ params: rawParams, searchParams }: Re
     `Chunk ${currentChunkIndex + 1} of ${bookChunks.length}` : 
     "Content Status Unknown";
   
-  const contentToShow = chunksError ? "Error loading book content." : 
-    (!bookChunks || bookChunks.length === 0 ? "No content available." : 
+  const contentToShow = chunksError 
+    ? (chunksError as Error)?.message || "Error loading book content."
+    : (!bookChunks || bookChunks.length === 0 ? "No content available for this book." : 
     getCurrentChunkContent(bookChunks, currentChunkIndex));
   
   console.log(`[ReaderPage] Current chunk index: ${currentChunkIndex}, Content: "${contentToShow.substring(0,50)}..."`);
@@ -211,12 +204,13 @@ export default async function ReaderPage({ params: rawParams, searchParams }: Re
   const readingProgress = bookChunks && bookChunks.length > 0 ? Math.round(((currentChunkIndex + 1) / bookChunks.length) * 100) : 0;
 
   // Placeholder data for UI elements from the screenshot
-  const chapterOptions = [
-    { value: "Chapter 1", label: "Chapter 1: The Beginning..." },
-    { value: "Chapter 2", label: "Chapter 2: The Journey..." },
-    { value: "Chapter 3", label: "Chapter 3: The Climax..." },
-  ];
-  const selectedChapterValue = "Chapter 2"; // Placeholder
+  // chapterOptions and selectedChapterValue removed as they were unused
+  // const chapterOptions = [
+  //   { value: "Chapter 1", label: "Chapter 1: The Beginning..." },
+  //   { value: "Chapter 2", label: "Chapter 2: The Journey..." },
+  //   { value: "Chapter 3", label: "Chapter 3: The Climax..." },
+  // ];
+  // const selectedChapterValue = "Chapter 2"; // Placeholder
 
   // AI Assistant placeholders
   const aiInteractions = [
@@ -225,8 +219,20 @@ export default async function ReaderPage({ params: rawParams, searchParams }: Re
     { sender: "AI", text: `Certainly! This chapter focuses on... (placeholder summary for Fiction mode).`, mode: "Fiction" }
   ];
   // Allow currentAIMode to be typed as either string for the placeholder logic
-  let currentAIMode: string = "Fiction"; 
+  const currentAIMode: string = "Fiction"; 
   const aiPlaceholderText = currentAIMode === "Fiction" ? "Ask about fiction aspects..." : "Ask about non-fiction anaylsis...";
+
+  // Moved chunksError display to be just before the main return, so contentToShow can reflect it.
+  if (chunksError) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <h1 className="text-2xl font-bold text-red-600 mb-4">Error Loading Book Content</h1>
+        <p className="text-gray-700 mb-2">Could not load the content for &quot;{publicBookDetails.title || 'this book'}&quot;.</p>
+        <p className="text-sm text-gray-500">Details: {contentToShow}</p>
+        <Link href="/library" className="text-indigo-600 hover:underline mt-4 inline-block">Return to Library</Link>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col md:flex-row flex-grow bg-gray-50 overflow-hidden h-[calc(100vh-150px)]"> {/* Adjusted height */} 

@@ -2,16 +2,16 @@ import { createSupabaseServerClient } from "@/utils/supabase/server";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
-import { BookCheck, BarChart3, StickyNote, Zap, CalendarClock, Brain } from 'lucide-react'; // Example icons
+import { BookCheck, BarChart3, Zap, CalendarClock, Brain } from 'lucide-react'; // Example icons
 
 interface BookDetailsPageParams {
   userBookId: string;
 }
 
-// Re-using types from the reader page for consistency, can be moved to a shared types file
 interface AuthorData {
   name: string;
-  [key: string]: any;
+  birth_year?: number; // Made more specific
+  death_year?: number; // Made more specific
 }
 
 interface PublicBookData {
@@ -21,18 +21,6 @@ interface PublicBookData {
   gutenberg_id: number | null;
   description?: string; // Assuming description might be in public_books
   cover_image_url?: string; 
-}
-
-interface UserBookWithPublicBook {
-  id: number; // user_books.id
-  user_id: string;
-  current_chunk_index: number | null;
-  current_cfi: string | null;
-  reading_progress_percent: number | null;
-  public_book_db_id: number;
-  public_books: PublicBookData; // Expecting this to be non-null due to !inner join
-  notes_count?: number; // Example placeholder
-  highlights_count?: number; // Example placeholder
 }
 
 // Mock function to get chapter data - replace with actual fetching if available
@@ -45,8 +33,16 @@ const getChaptersPlaceholder = (bookId: number | undefined) => {
   ].slice(0, Math.floor(Math.random() * 3) + 1);
 };
 
-export default async function BookDetailsPage({ params: rawParams }: { params: BookDetailsPageParams }) {
-  const params = await rawParams; // Ensure params are resolved
+interface UserBookQueryResult {
+    id: number;
+    user_id: string;
+    reading_progress_percent: number | null;
+    public_book_db_id: number;
+    public_books: PublicBookData | PublicBookData[] | null; // Adjusted to reflect potential array from Supabase
+}
+
+export default async function BookDetailsPage({ params: rawParams }: { params: Promise<BookDetailsPageParams> }) {
+  const params = await rawParams; // Ensure params are resolved from the promise
   console.log(`[BookDetailsPage] Rendering for userBookId (param): ${params.userBookId}`);
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -82,7 +78,7 @@ export default async function BookDetailsPage({ params: rawParams }: { params: B
     `)
     .eq("id", userBookIdNum)
     .eq("user_id", user.id)
-    .single();
+    .single<UserBookQueryResult>();
 
   console.log('[BookDetailsPage] Fetched userBookData:', JSON.stringify(userBookData, null, 2));
   if (userBookError) {
@@ -99,10 +95,11 @@ export default async function BookDetailsPage({ params: rawParams }: { params: B
     book = userBookData.public_books[0] as PublicBookData;
     console.log("[BookDetailsPage] Derived 'book' from public_books array (first element).");
   } else if (userBookData.public_books && typeof userBookData.public_books === 'object' && !Array.isArray(userBookData.public_books)) {
+    // This case handles when Supabase, due to !inner and .single(), correctly infers it as an object.
     book = userBookData.public_books as PublicBookData;
     console.log("[BookDetailsPage] Derived 'book' from public_books object.");
   } else {
-    console.log('[BookDetailsPage] public_books is in an unexpected format or empty:', JSON.stringify(userBookData.public_books, null, 2));
+    console.log('[BookDetailsPage] public_books is in an unexpected format, empty, or null:', JSON.stringify(userBookData.public_books, null, 2));
   }
   console.log("[BookDetailsPage] Final 'book' object:", JSON.stringify(book, null, 2));
 

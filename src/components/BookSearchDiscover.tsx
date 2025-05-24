@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, ChangeEvent, SetStateAction } from 'react';
+import { useState, FormEvent, ChangeEvent } from 'react';
 // import { createSupabaseBrowserClient } from '../utils/supabase/client'; // Ensure this path is correct
 
 interface Author {

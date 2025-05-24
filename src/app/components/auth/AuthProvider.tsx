@@ -109,7 +109,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('%c[AuthProvider] Main useEffect CLEANUP. Unsubscribing from onAuthStateChange.', 'color: green;');
       subscription?.unsubscribe();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, fetchProfileAndSetSession]); // fetchProfileAndSetSession is now a dependency
 
   const contextValue = useMemo(() => ({

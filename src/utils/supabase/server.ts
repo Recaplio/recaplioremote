@@ -19,7 +19,7 @@ export function createSupabaseServerClient() {
           try {
             const cookieStore = await getCookies();
             cookieStore.set({ name, value, ...options });
-          } catch (_error) {
+          } catch {
             // The `set` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
@@ -30,7 +30,7 @@ export function createSupabaseServerClient() {
           try {
             const cookieStore = await getCookies();
             cookieStore.set({ name, value: '', ...options }); // Supabase uses set empty to remove
-          } catch (_error) {
+          } catch {
             // The `delete` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.

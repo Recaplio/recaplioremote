@@ -63,11 +63,13 @@ export async function POST(request: NextRequest) {
   let payload: AddFromGutenbergPayload;
   try {
     payload = await request.json();
-  } catch (e) {
-    return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 });
+  } catch (e: unknown) {
+    console.error("[AddFromGutenberg] Error parsing request payload:", e);
+    const message = e instanceof Error ? e.message : "Invalid JSON format";
+    return NextResponse.json({ error: 'Invalid request payload', details: message }, { status: 400 });
   }
 
-  const { gutenberg_id, title, authors, subjects, languages } = payload;
+  const { gutenberg_id } = payload;
 
   if (!gutenberg_id || isNaN(Number(gutenberg_id))) {
     return NextResponse.json({ error: 'Invalid Gutenberg ID' }, { status: 400 });
