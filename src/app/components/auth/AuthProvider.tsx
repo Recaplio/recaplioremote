@@ -27,70 +27,70 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null); // State for profile
   const [isLoading, setIsLoading] = useState(true); // Start true for initial load
 
-  console.log('[AuthProvider] Initializing, isLoading:', isLoading);
+  console.log(`%c[AuthProvider] Component Instantiated. Initial isLoading: ${isLoading}`, 'color: blue; font-weight: bold;');
 
   useEffect(() => {
-    console.log('[AuthProvider] useEffect triggered');
+    console.log(`%c[AuthProvider] useEffect RUN. Supabase client available: ${!!supabase}`, 'color: green;');
 
-    const fetchProfileAndSetSession = async (currentSession: Session | null) => {
-      console.log('[AuthProvider] fetchProfileAndSetSession called. User ID:', currentSession?.user?.id, 'Current isLoading state:', isLoading);
+    const fetchProfileAndSetSession = async (currentSession: Session | null, source: string) => {
+      // THIS IS THE MOST CRITICAL LOG TO SEE
+      console.log(`%c[AuthProvider] fetchProfileAndSetSession ENTERED. Source: ${source}. User ID: ${currentSession?.user?.id}. Current isLoading: ${isLoading}`, 'color: red; font-weight: bold;');
       setIsLoading(true);
+
       if (currentSession?.user) {
         try {
-          console.log('[AuthProvider] TRYING to fetch profile for user:', currentSession.user.id);
+          console.log(`[AuthProvider] Attempting profile fetch for user: ${currentSession.user.id}`);
           const { data: profile, error: profileError, status: profileStatus } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', currentSession.user.id)
             .single();
-
-          console.log('[AuthProvider] Profile fetch ATTEMPTED. Status:', profileStatus, 'Error object:', profileError, 'Returned profile data:', profile);
-
-          if (profileError && profileStatus !== 406) {
-            console.error('[AuthProvider] Error fetching profile (logged with status check):', { error: profileError, status: profileStatus });
+          console.log(`[AuthProvider] Profile fetch completed. Status: ${profileStatus}, Error: ${JSON.stringify(profileError)}, Data: ${JSON.stringify(profile)}`);
+          if (profileError && profileStatus !== 406) { // 406 can occur with .single() if no row found and not using .maybeSingle()
             setUserProfile(null);
-          } else if (!profileError && profile) {
-            console.log('[AuthProvider] Profile fetched successfully:', profile);
-            setUserProfile(profile as UserProfile);
           } else {
-            console.log('[AuthProvider] No profile data returned or a non-blocking error occurred (e.g., no profile row for user), setting profile to null. Error:', profileError);
-            setUserProfile(null);
+            setUserProfile(profile as UserProfile);
           }
         } catch (e: unknown) {
-          console.error('[AuthProvider] CATCH BLOCK for exception during profile fetch:', e);
+          console.error('[AuthProvider] CATCH during profile fetch:', e);
           setUserProfile(null);
         }
       } else {
-        console.log('[AuthProvider] No user in current session, clearing profile.');
         setUserProfile(null);
       }
       setSession(currentSession);
-      console.log('[AuthProvider] Session state updated. New session user ID:', currentSession?.user?.id);
       setIsLoading(false);
-      console.log('[AuthProvider] setIsLoading(false). isLoading is now:', isLoading);
+      console.log(`%c[AuthProvider] fetchProfileAndSetSession COMPLETED. setIsLoading(false). User ID: ${currentSession?.user?.id}`, 'color: red; font-weight: bold;');
     };
 
-    console.log('[AuthProvider] Setting up initial session fetch and auth state listener.');
-    supabase.auth.getSession().then(({ data: { session: initialSession } , error }) => {
-      console.log('[AuthProvider] getSession completed. User ID:', initialSession?.user?.id, 'Error:', error);
-      fetchProfileAndSetSession(initialSession);
-    }).catch(error => {
-        console.error('[AuthProvider] Error in getSession promise:', error);
-        fetchProfileAndSetSession(null);
+    // Initial session check
+    console.log('[AuthProvider] Attempting supabase.auth.getSession()...');
+    supabase.auth.getSession().then(({ data: { session: initialSession }, error: getSessionError }) => {
+      if (getSessionError) {
+        console.error('[AuthProvider] Error from getSession():', getSessionError);
+      }
+      console.log(`%c[AuthProvider] getSession() response. User ID: ${initialSession?.user?.id}. Has error: ${!!getSessionError}`, 'color: purple;');
+      fetchProfileAndSetSession(initialSession, 'initialGetSession');
+    }).catch(catchError => {
+      console.error('[AuthProvider] CATCH from getSession() promise:', catchError);
+      fetchProfileAndSetSession(null, 'initialGetSessionError');
     });
 
+    // Auth state change listener
+    console.log('[AuthProvider] Setting up onAuthStateChange listener...');
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
-        console.log('[AuthProvider] onAuthStateChange triggered. Event:', _event, 'New User ID:', newSession?.user?.id);
-        await fetchProfileAndSetSession(newSession);
+        console.log(`%c[AuthProvider] onAuthStateChange FIRED. Event: ${_event}. New User ID: ${newSession?.user?.id}`, 'color: orange;');
+        // No matter what, call fetchProfileAndSetSession
+        await fetchProfileAndSetSession(newSession, `onAuthStateChange-${_event}`);
       }
     );
 
     return () => {
-      console.log('[AuthProvider] Unsubscribing from auth state changes.');
+      console.log('[AuthProvider] useEffect cleanup: Unsubscribing from onAuthStateChange.');
       subscription?.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase]); // Dependency: supabase client instance
 
   return (
     <AuthContext.Provider value={{ supabase, session, userProfile, isLoading }}>
