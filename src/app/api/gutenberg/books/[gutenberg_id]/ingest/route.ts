@@ -77,49 +77,100 @@ function cleanBookTextRevised(fullText: string): string {
 // --- Basic Text Chunking (Illustrative - replace with your more advanced logic if available) ---
 // Simple chunking by paragraph, then by word count if paragraphs are too long.
 // A more sophisticated approach would use semantic chunking or fixed token counts.
-const TARGET_CHUNK_CHAR_COUNT = 1500; // Aim for around 1500 characters per chunk
+const MIN_CHUNK_CHAR_COUNT = 3000; // New: Minimum characters for a chunk
+const TARGET_CHUNK_CHAR_COUNT = 6000; // New: Target characters for a chunk (approx. 2-3 pages)
 
 function chunkBookText(text: string): string[] {
   if (!text) return [];
   console.log('[chunkBookText] Initial text length:', text.length);
 
   const chunks: string[] = [];
-  // Split by one or more blank lines. Trim paragraphs to remove leading/trailing whitespace from the paragraph itself.
-  const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0); 
+  const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
   console.log(`[chunkBookText] Number of paragraphs found after split: ${paragraphs.length}`);
-  if (paragraphs.length > 0) {
-    console.log(`[chunkBookText] Length of first paragraph: ${paragraphs[0].length}`);
-  }
-  if (paragraphs.length > 1) {
-    console.log(`[chunkBookText] Length of second paragraph (if exists): ${paragraphs[1].length}`);
-  }
 
-  for (const paragraph of paragraphs) {
-    if (paragraph.length === 0) continue; // Should be caught by filter, but defensive
-    // console.log(`[chunkBookText] Processing paragraph of length: ${paragraph.length}`);
+  let currentChunkBuffer: string[] = [];
+  let currentChunkCharCount = 0;
 
-    if (paragraph.length <= TARGET_CHUNK_CHAR_COUNT) {
-      // console.log(`[chunkBookText] Paragraph is short enough, adding as one chunk.`);
-      chunks.push(paragraph);
-    } else {
-      // console.log(`[chunkBookText] Paragraph is too long (>${TARGET_CHUNK_CHAR_COUNT}), splitting by words.`);
-      const words = paragraph.split(/\s+/); // Split by any whitespace
-      let currentChunk = '';
+  for (let i = 0; i < paragraphs.length; i++) {
+    const paragraph = paragraphs[i];
+
+    // Case 1: Current paragraph itself is very large
+    if (paragraph.length > TARGET_CHUNK_CHAR_COUNT) {
+      // First, if there's anything in the buffer, decide if it forms a valid chunk
+      if (currentChunkBuffer.length > 0) {
+        const bufferedContent = currentChunkBuffer.join('\n\n');
+        if (bufferedContent.length >= MIN_CHUNK_CHAR_COUNT || chunks.length === 0) { // Allow smaller first chunk if necessary
+          chunks.push(bufferedContent);
+        } else if (chunks.length > 0) {
+          // Try to append to the previous chunk if it's too small
+          chunks[chunks.length - 1] += '\n\n' + bufferedContent;
+        }
+        currentChunkBuffer = [];
+        currentChunkCharCount = 0;
+      }
+
+      // Split the large paragraph by word count (similar to old logic but for this specific case)
+      const words = paragraph.split(/\s+/);
+      let subChunk = '';
       for (const word of words) {
-        if ((currentChunk + ' ' + word).length > TARGET_CHUNK_CHAR_COUNT && currentChunk.length > 0) {
-          chunks.push(currentChunk); 
-          currentChunk = word;
+        if ((subChunk + ' ' + word).length > TARGET_CHUNK_CHAR_COUNT && subChunk.length > 0) {
+          chunks.push(subChunk);
+          subChunk = word;
         } else {
-          currentChunk = currentChunk ? `${currentChunk} ${word}` : word;
+          subChunk = subChunk ? `${subChunk} ${word}` : word;
         }
       }
-      if (currentChunk.length > 0) {
-        chunks.push(currentChunk);
+      if (subChunk.length > 0) {
+        // If this last sub-chunk is too small, try to append it to the previous chunk if that chunk was also from this large paragraph
+        if (chunks.length > 0 && subChunk.length < MIN_CHUNK_CHAR_COUNT && chunks[chunks.length -1].startsWith(words[0].substring(0,10))) { // Heuristic: previous chunk is from same para
+            chunks[chunks.length -1] += ' ' + subChunk;
+        } else {
+            chunks.push(subChunk);
+        }
       }
+      continue; // Move to the next paragraph
+    }
+
+    // Case 2: Adding current paragraph to buffer would exceed target
+    if (currentChunkCharCount + paragraph.length + (currentChunkBuffer.length > 0 ? 2 : 0) > TARGET_CHUNK_CHAR_COUNT) {
+      if (currentChunkBuffer.length > 0 && currentChunkCharCount >= MIN_CHUNK_CHAR_COUNT) {
+        chunks.push(currentChunkBuffer.join('\n\n'));
+        currentChunkBuffer = [paragraph];
+        currentChunkCharCount = paragraph.length;
+      } else if (currentChunkBuffer.length > 0) { // Buffer is too small to be its own chunk yet
+        currentChunkBuffer.push(paragraph);
+        currentChunkCharCount += paragraph.length + 2; // +2 for '\n\n'
+        // (This combined chunk might now be over TARGET, but will be pushed in the next iteration or at the end)
+      } else { // Buffer is empty, current paragraph is less than TARGET but starts a new potential chunk
+        currentChunkBuffer = [paragraph];
+        currentChunkCharCount = paragraph.length;
+      }
+    } else {
+      // Case 3: Add current paragraph to buffer
+      currentChunkBuffer.push(paragraph);
+      currentChunkCharCount += paragraph.length + (currentChunkBuffer.length > 1 ? 2 : 0); // +2 for '\n\n' if not the first para in buffer
     }
   }
+
+  // Add any remaining content in the buffer as the last chunk
+  if (currentChunkBuffer.length > 0) {
+    const remainingContent = currentChunkBuffer.join('\n\n');
+    if (chunks.length > 0 && remainingContent.length < MIN_CHUNK_CHAR_COUNT) {
+        // If the last buffered content is too small, append it to the previous chunk
+        chunks[chunks.length - 1] += '\n\n' + remainingContent;
+    } else {
+        chunks.push(remainingContent);
+    }
+  }
+
   console.log(`[chunkBookText] Total chunks created: ${chunks.length}`);
-  return chunks.filter(chunk => chunk.length > 0); // Ensure no empty chunks are returned
+  if (chunks.length > 0) {
+    console.log(`[chunkBookText] Example chunk 0 length: ${chunks[0].length}`);
+    if (chunks.length > 1) {
+      console.log(`[chunkBookText] Example chunk 1 length: ${chunks[1] ? chunks[1].length : 'N/A'}`);
+    }
+  }
+  return chunks.filter(chunk => chunk.length > 0);
 }
 
 

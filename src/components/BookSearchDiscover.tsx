@@ -26,6 +26,7 @@ interface GutendexBook {
   authors: Author[];
   subjects: string[];
   languages: string[];
+  media_type: string; // Added media_type
   download_count?: number;
   // formats: { [key: string]: string }; // Can be added if we need to show specific format URLs
 }
@@ -97,14 +98,18 @@ export default function BookSearchDiscover() {
 
   const searchGutendex = async () => {
     try {
-      const response = await fetch(`https://gutendex.com/books?search=${encodeURIComponent(searchTerm)}`);
+      const response = await fetch(`https://gutendex.com/books?search=${encodeURIComponent(searchTerm)}&mime_type=text%2Fplain`);
       if (!response.ok) {
         throw new Error(`Gutendex API Error: ${response.status}`);
       }
       const data: GutendexSearchResult = await response.json();
-      setGutendexResults(data.results || []);
-      if (!data.results || data.results.length === 0) {
-        setError('No books found on Project Gutenberg matching your search criteria.');
+      
+      // Filter out non-text media types
+      const textBooks = data.results ? data.results.filter(book => book.media_type === 'Text') : [];
+      
+      setGutendexResults(textBooks);
+      if (textBooks.length === 0) {
+        setError('No text-based books found on Project Gutenberg matching your search criteria.');
       }
     } catch (err: unknown) {
       console.error('Gutendex search failed:', err);
