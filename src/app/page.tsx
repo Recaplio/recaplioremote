@@ -15,6 +15,7 @@ import {
   MagnifyingGlassCircleIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline'; // Primarily using outline icons for a cleaner look
+import { useAuth } from '@/app/components/auth/AuthProvider'; // Added useAuth import
 
 // Placeholder for a more elaborate icon or illustration component
 const ReadingIllustration = () => (
@@ -52,6 +53,7 @@ const AvatarPlaceholder = ({ initial }: { initial: string }) => (
 );
 
 export default function HomePage() {
+  const { session } = useAuth(); // Get session state
   const features = [
     {
       name: 'AI-Powered Summaries & Q&A',
@@ -122,10 +124,10 @@ export default function HomePage() {
               </p>
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-5">
                 <Link
-                  href="/signup"
+                  href={session ? "/discover" : "/signup"}
                   className="w-full sm:w-auto inline-flex items-center justify-center px-7 py-3.5 sm:px-8 sm:py-4 border border-transparent text-base font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
                 >
-                  Get Started for Free
+                  {session ? "Discover New Books" : "Get Started for Free"}
                   <ArrowRightIcon className="ml-2.5 h-5 w-5" />
                 </Link>
                 <Link
@@ -323,20 +325,20 @@ export default function HomePage() {
       </section>
 
       {/* Final Call to Action Section */}
-      <section className="py-16 md:py-24 bg-slate-50">
+      <section className="py-16 md:py-24 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <AcademicCapIcon className="w-10 h-10 text-indigo-600 mx-auto mb-4" />
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tighter text-gray-900 mb-4">
             Transform Your Reading Today
           </h2>
           <p className="text-lg text-gray-600 max-w-xl mx-auto mb-10 leading-relaxed">
-            Join Recaplio and start understanding more from every book you open. It&apos;s free to get started and explore the core features!
+            Join Recaplio and start understanding more from every book you open. {session ? "Continue exploring or manage your library." : "It's free to get started and explore the core features!"}
           </p>
           <Link
-            href="/signup"
+            href={session ? "/library" : "/signup"}
             className="inline-flex items-center justify-center px-8 py-4 sm:px-10 sm:py-4 border border-transparent text-base sm:text-lg font-semibold rounded-lg text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-0.5"
           >
-            Sign Up for Free Now
+            {session ? "Go to Your Library" : "Sign Up for Free Now"}
             <ArrowRightIcon className="ml-3 h-5 w-5" />
           </Link>
         </div>
