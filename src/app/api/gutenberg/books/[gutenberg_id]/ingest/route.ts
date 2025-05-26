@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/utils/supabase/server'; // Using admin client for all DB ops here
+import { generateEmbedding, storeEmbedding, initializePineconeIndex } from '@/lib/ai/embeddings';
 // Removed Tiktoken import: import { get_encoding } from 'tiktoken';
 // import { yourMoreAdvancedCleanFn } from '@/utils/textCleaning'; // Placeholder for your cleaning function
 // import { yourMoreAdvancedChunkFn } from '@/utils/textChunking'; // Placeholder for your chunking function
@@ -173,6 +174,62 @@ function chunkBookText(text: string): string[] {
   return chunks.filter(chunk => chunk.length > 0);
 }
 
+// --- NEW: Embedding Generation Function ---
+async function generateEmbeddingsForChunks(publicBookId: number, textChunks: string[]): Promise<void> {
+  console.log(`[generateEmbeddingsForChunks] Starting embedding generation for book ${publicBookId} with ${textChunks.length} chunks`);
+  
+  try {
+    // Initialize Pinecone index if needed
+    await initializePineconeIndex();
+    console.log(`[generateEmbeddingsForChunks] Pinecone index initialized`);
+
+    // Process chunks in batches to avoid rate limits
+    const batchSize = 3; // Smaller batch size during ingestion to be conservative
+    for (let i = 0; i < textChunks.length; i += batchSize) {
+      const batch = textChunks.slice(i, i + batchSize);
+      
+      console.log(`[generateEmbeddingsForChunks] Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(textChunks.length / batchSize)}`);
+
+      await Promise.all(
+        batch.map(async (chunkContent, batchIndex) => {
+          const chunkIndex = i + batchIndex;
+          try {
+            // Generate embedding
+            const embedding = await generateEmbedding(chunkContent);
+            
+            // Create unique ID for Pinecone
+            const pineconeId = `book_${publicBookId}_chunk_${chunkIndex}`;
+            
+            // Store in Pinecone
+            await storeEmbedding(pineconeId, embedding, {
+              bookId: publicBookId,
+              chunkIndex: chunkIndex,
+              content: chunkContent,
+              bookType: 'public',
+            });
+
+            console.log(`[generateEmbeddingsForChunks] ✓ Generated embedding for chunk ${chunkIndex}`);
+          } catch (error) {
+            console.error(`[generateEmbeddingsForChunks] ✗ Error processing chunk ${chunkIndex}:`, error);
+            // Continue with other chunks even if one fails
+          }
+        })
+      );
+
+      // Add delay between batches to respect rate limits
+      if (i + batchSize < textChunks.length) {
+        console.log('[generateEmbeddingsForChunks] Waiting 2 seconds before next batch...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+
+    console.log(`[generateEmbeddingsForChunks] ✓ Completed embedding generation for book ${publicBookId}`);
+  } catch (error) {
+    console.error(`[generateEmbeddingsForChunks] Error generating embeddings for book ${publicBookId}:`, error);
+    // Don't throw error - embeddings are not critical for basic functionality
+    // They can be generated later using the script
+  }
+}
 
 export async function POST(
   request: NextRequest,
@@ -226,15 +283,15 @@ export async function POST(
     // let bookDownloadCount: number | null = null; // Removed as it was not used
 
 
-    // 2. If not in public_books or missing essential data, fetch metadata from Gutendex
+    // 2. If not in public_books or missing essential data, fetch metadata from Gutendx
     if (!existingPublicBook || !rawTextUrl || !bookFormats) {
-      const gutendexResponse = await fetch(`https://gutendex.com/books/${numericGutenbergId}`);
+      const gutendexResponse = await fetch(`https://gutendx.com/books/${numericGutenbergId}`);
       if (!gutendexResponse.ok) {
         if (gutendexResponse.status === 404) {
-            return NextResponse.json({ error: `Book with Gutenberg ID ${numericGutenbergId} not found on Gutendex.` }, { status: 404 });
+            return NextResponse.json({ error: `Book with Gutenberg ID ${numericGutenbergId} not found on Gutendx.` }, { status: 404 });
         }
-        console.error('Gutendex API error:', gutendexResponse.status, await gutendexResponse.text());
-        return NextResponse.json({ error: 'Failed to fetch book metadata from Gutendex.' }, { status: 502 });
+        console.error('Gutendx API error:', gutendexResponse.status, await gutendexResponse.text());
+        return NextResponse.json({ error: 'Failed to fetch book metadata from Gutendx.' }, { status: 502 });
       }
       const bookData = await gutendexResponse.json();
 
@@ -246,7 +303,7 @@ export async function POST(
         null;
 
       if (!rawTextUrl) {
-        return NextResponse.json({ error: 'No suitable plain text URL found for this book on Gutendex.' }, { status: 404 });
+        return NextResponse.json({ error: 'No suitable plain text URL found for this book on Gutendx.' }, { status: 404 });
       }
 
       // 3. Upsert into public_books (insert or update if it existed but was missing URL)
@@ -344,12 +401,16 @@ export async function POST(
         console.error('Error inserting book chunks:', insertChunksError);
         return NextResponse.json({ error: 'Database error saving book chunks.', details: insertChunksError.message }, { status: 500 });
       }
+
+      // 8. NEW: Generate embeddings for the chunks
+      console.log(`Starting embedding generation for ${textChunks.length} chunks...`);
+      await generateEmbeddingsForChunks(publicBookDbId, textChunks);
     } else {
         console.log(`No chunks to insert for book ${publicBookDbId}.`);
     }
 
 
-    // 8. Update public_books with ingested_at and cleaned_text_length
+    // 9. Update public_books with ingested_at and cleaned_text_length
     const { error: updatePublicBookError } = await supabase
       .from('public_books')
       .update({
@@ -367,7 +428,7 @@ export async function POST(
 
     return NextResponse.json(
       { 
-        message: 'Book ingested successfully.', 
+        message: 'Book ingested successfully with embeddings.', 
         book_id: publicBookDbId, 
         gutenberg_id: numericGutenbergId,
         chunks_created: textChunks.length 
