@@ -1,7 +1,8 @@
 'use client';
 
 import { forwardRef } from 'react';
-import Link from 'next/link'; // Import Link
+import Link from 'next/link';
+import type { BookStatus } from '../app/discover/DiscoverClientPage'; // Import BookStatus
 
 // Data structures - these should ideally be in a shared types file
 interface Author {
@@ -25,7 +26,7 @@ interface SearchResultsListProps {
   gutendexResults: GutendexBook[];
   isLoading: boolean;
   error: string | null;
-  addBookStatus: { [key: string]: string };
+  addBookStatus: { [key: string]: BookStatus }; // Updated type
   handleAddGutendexBook: (book: GutendexBook) => Promise<void>;
   searchAttempted: boolean; // To know if a search has been made
 }
@@ -37,6 +38,9 @@ const SearchResultsList = forwardRef<HTMLDivElement, SearchResultsListProps>((
   // Known success messages
   const EXACT_SUCCESS_MESSAGE = "Book added to your library successfully!";
   const FALLBACK_SUCCESS_MESSAGE = "Added to Library!";
+  // Add other known success messages if the API might return them for a 200/201
+  const INGESTING_MESSAGE = "Book ingestion started. Check your library later.";
+  const ALREADY_IN_LIBRARY_MESSAGE = "Book is already in your library.";
 
   return (
     <div ref={ref} className="mt-8 pt-8 border-t border-gray-200">
@@ -47,10 +51,16 @@ const SearchResultsList = forwardRef<HTMLDivElement, SearchResultsListProps>((
         <ul className="space-y-4">
           {gutendexResults.map((book) => {
             const bookKey = `gutendex-${book.id}`;
-            const currentStatus = addBookStatus[bookKey];
+            const statusObject = addBookStatus[bookKey];
+            const currentMessage = statusObject?.message;
+            const bookIdForLink = statusObject?.bookId;
+
+            const isDirectSuccess = currentMessage === EXACT_SUCCESS_MESSAGE || 
+                                  currentMessage === FALLBACK_SUCCESS_MESSAGE;
             
-            const isSuccess = currentStatus === EXACT_SUCCESS_MESSAGE || 
-                              currentStatus === FALLBACK_SUCCESS_MESSAGE;
+            // Consider already in library (with a bookId) as a state where reading is possible
+            const canRead = bookIdForLink && (isDirectSuccess || currentMessage === ALREADY_IN_LIBRARY_MESSAGE);
+            const showPrimaryButton = !isDirectSuccess && currentMessage !== INGESTING_MESSAGE && currentMessage !== ALREADY_IN_LIBRARY_MESSAGE;
 
             return (
               <li key={bookKey} className="p-4 border border-gray-200 rounded-lg shadow-sm bg-white hover:shadow-md transition-shadow">
@@ -63,23 +73,38 @@ const SearchResultsList = forwardRef<HTMLDivElement, SearchResultsListProps>((
                     <p className="text-xs text-gray-500">Languages: {book.languages.join(', ')}</p>
                     {book.download_count && <p className="text-xs text-gray-500">Downloads: {book.download_count}</p>}
                   </div>
-                  <div className="ml-4 flex flex-col items-end space-y-2">
-                    {isSuccess ? (
-                      <div className="text-right">
-                        <span className="text-sm text-green-600 font-medium">{currentStatus}</span>
+                  <div className="ml-4 flex flex-col items-end space-y-1.5">
+                    {(isDirectSuccess || currentMessage === ALREADY_IN_LIBRARY_MESSAGE || currentMessage === INGESTING_MESSAGE) && (
+                        <span 
+                            className={`text-sm font-medium ${isDirectSuccess || currentMessage === ALREADY_IN_LIBRARY_MESSAGE ? 'text-green-600' : 'text-blue-600'}`}
+                        >
+                            {currentMessage}
+                        </span>
+                    )}
+                    
+                    {canRead && (
+                        <Link href={`/reader/${bookIdForLink}`} legacyBehavior>
+                          <a className="inline-block px-3 py-1.5 text-xs bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors whitespace-nowrap">
+                            Start Reading Now!
+                          </a>
+                        </Link>
+                    )}
+
+                    {(isDirectSuccess || currentMessage === ALREADY_IN_LIBRARY_MESSAGE) && (
                         <Link href="/library" legacyBehavior>
-                          <a className="mt-1 inline-block px-3 py-1.5 text-xs bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition-colors">
+                          <a className="inline-block px-3 py-1.5 text-xs bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition-colors whitespace-nowrap">
                             Go to Library
                           </a>
                         </Link>
-                      </div>
-                    ) : (
+                    )}
+                    
+                    {showPrimaryButton && (
                       <button
                         onClick={() => handleAddGutendexBook(book)}
-                        disabled={!!currentStatus && currentStatus !== 'Failed' && currentStatus !== 'Failed (Auth)'}
+                        disabled={!!currentMessage && currentMessage !== 'Failed' && currentMessage !== 'Failed (Auth)'}
                         className="px-3 py-1.5 text-sm bg-teal-500 text-white rounded-md hover:bg-teal-600 disabled:bg-gray-300 disabled:text-gray-500 whitespace-nowrap transition-colors"
                       >
-                        {currentStatus || 'Add to Library'}
+                        {currentMessage || 'Add to Library'}
                       </button>
                     )}
                   </div>

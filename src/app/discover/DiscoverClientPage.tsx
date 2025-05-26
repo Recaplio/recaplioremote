@@ -18,6 +18,12 @@ interface GutendexSearchResult {
   results: GutendexBook[];
 }
 
+// Define the structure for addBookStatus
+export interface BookStatus {
+  message: string;
+  bookId?: number | string; // To store the ID for the reader link
+}
+
 const quickSearchCategories = [
   { name: 'Most Popular', href: '/discover?popular=true', icon: FireIcon, bgColor: 'bg-red-50 hover:bg-red-100', textColor: 'text-red-700' },
   { name: 'Classic Fiction', href: '/discover?topic=Fiction', icon: BookOpenIcon, bgColor: 'bg-sky-50 hover:bg-sky-100', textColor: 'text-sky-700' },
@@ -48,7 +54,7 @@ export default function DiscoverClientPage() { // Renamed function
   const [gutendexResults, setGutendexResults] = useState<GutendexBook[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [addBookStatus, setAddBookStatus] = useState<{ [key: string]: string }>({});
+  const [addBookStatus, setAddBookStatus] = useState<{ [key: string]: BookStatus }>({});
   const [searchAttempted, setSearchAttempted] = useState<boolean>(false); // New state
 
   // Auth check would typically be in a wrapper or handled differently for client components
@@ -166,7 +172,7 @@ export default function DiscoverClientPage() { // Renamed function
 
   const handleAddGutendexBook = async (book: GutendexBook) => {
     const bookKey = `gutendex-${book.id}`;
-    setAddBookStatus(prev => ({ ...prev, [bookKey]: 'Processing...' }));
+    setAddBookStatus(prev => ({ ...prev, [bookKey]: { message: 'Processing...' } }));
     setError(null); // Clear general errors when trying to add a book
 
     try {
@@ -184,23 +190,38 @@ export default function DiscoverClientPage() { // Renamed function
       const data = await response.json();
 
       if (!response.ok) {
-        let specificError = data.error || `Error adding book: ${response.status}`;
-        if (response.status === 401) specificError = 'Please log in to add books.';
-        if (response.status === 409) specificError = data.message || 'Book is already in your library.';
-        if (response.status === 202) specificError = data.message || 'Book ingestion started. Check your library later.'; 
+        let specificMessage = data.message || data.error || `Error adding book: ${response.status}`;
+        if (response.status === 401) specificMessage = 'Please log in to add books.';
         
-        setAddBookStatus(prev => ({ ...prev, [bookKey]: response.status === 409 || response.status === 202 ? data.message : 'Failed' }));
-        // Optionally set a more specific error for this book, or a general one
-        // For now, button status shows individual book issues
-        if (response.status !== 409 && response.status !== 202) setError(specificError);
+        // For 409 (already in library) or 202 (ingesting), the API might return a specific book ID if available
+        // or we just show the message.
+        const bookIdForStatus = data.user_book_id || data.book_id || undefined;
+
+        setAddBookStatus(prev => ({ 
+          ...prev, 
+          [bookKey]: { 
+            message: specificMessage, 
+            bookId: response.status === 409 ? bookIdForStatus : undefined 
+          } 
+        }));
+        if (response.status !== 409 && response.status !== 202) {
+            setError(specificMessage); // Set general error for actual failures
+        }
         return;
       }
-      setAddBookStatus(prev => ({ ...prev, [bookKey]: data.message || 'Added to Library!' }));
+      // Successful addition (200 or 201)
+      setAddBookStatus(prev => ({ 
+        ...prev, 
+        [bookKey]: { 
+          message: data.message || 'Added to Library!', 
+          bookId: data.user_book_id || data.book_id // Assuming API returns this ID
+        } 
+      }));
     } catch (err: unknown) {
       console.error('Failed to add Gutendex book:', err);
       const message = (err instanceof Error) ? err.message : 'Error processing book.';
       setError(message); // General error
-      setAddBookStatus(prev => ({ ...prev, [bookKey]: 'Failed' }));
+      setAddBookStatus(prev => ({ ...prev, [bookKey]: { message: 'Failed' } }));
     }
   };
 
