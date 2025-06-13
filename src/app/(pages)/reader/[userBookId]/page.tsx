@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -12,7 +12,7 @@ import ChunkSelector from "@/components/reader/ChunkSelector";
 import AIAssistant from "@/components/reader/AIAssistant";
 import SemanticSearch from "@/components/reader/SemanticSearch";
 import { useAuth } from '@/app/components/auth/AuthProvider';
-import { type ReadingMode, type KnowledgeLens } from '@/lib/ai/rag';
+import { type ReadingMode, type KnowledgeLens } from '@/lib/ai/client-utils';
 
 interface AuthorData {
   name: string;
@@ -51,28 +51,19 @@ export default function ReaderPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { session, supabase } = useAuth();
+  const { session, supabase, isLoading: authLoading } = useAuth();
   
   const [userBookData, setUserBookData] = useState<UserBookDataFromDB | null>(null);
   const [bookChunks, setBookChunks] = useState<BookChunk[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [readingMode, setReadingMode] = useState<ReadingMode>('fiction');
-  const [knowledgeLens, setKnowledgeLens] = useState<KnowledgeLens>('literary');
+  const [readingMode] = useState<ReadingMode>('fiction');
+  const [knowledgeLens] = useState<KnowledgeLens>('literary');
 
   const userBookId = params?.userBookId as string;
   const chunkParam = searchParams?.get('chunk');
 
-  useEffect(() => {
-    if (!session?.user || !userBookId) {
-      router.push('/login?message=Please log in to read books.');
-      return;
-    }
-
-    fetchBookData();
-  }, [session, userBookId, supabase]);
-
-  const fetchBookData = async () => {
+  const fetchBookData = useCallback(async () => {
     if (!session?.user || !supabase) return;
 
     try {
@@ -130,7 +121,20 @@ export default function ReaderPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [session, supabase, userBookId]);
+
+  useEffect(() => {
+    // Don't redirect immediately - wait for auth to load
+    if (!authLoading && !session?.user) {
+      router.push('/login?message=Please log in to read books.');
+      return;
+    }
+
+    // Only fetch data when we have a session and userBookId
+    if (session?.user && userBookId && !authLoading) {
+      fetchBookData();
+    }
+  }, [session, userBookId, supabase, authLoading, fetchBookData, router]);
 
   const updateReadingProgress = async (newChunkIndex: number) => {
     if (!userBookData || !bookChunks) return;
@@ -155,10 +159,15 @@ export default function ReaderPage() {
     router.push(`/reader/${userBookId}?chunk=${chunkIndex}`);
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+      <div className="flex items-center justify-center h-[calc(100vh-64px)] bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            {authLoading ? 'Authenticating...' : 'Loading book...'}
+          </p>
+        </div>
       </div>
     );
   }
@@ -193,34 +202,55 @@ export default function ReaderPage() {
   const contentToShow = getCurrentChunkContent(bookChunks, currentChunkIndex);
 
   return (
-    <div className="flex flex-col md:flex-row flex-grow bg-gray-50 overflow-hidden h-[calc(100vh-150px)]">
-      {/* Left Pane (Reader) */}
-      <div className="w-full md:w-2/3 border-r border-gray-200 flex flex-col overflow-hidden">
-        {/* Reader Header */}
-        <div className="p-3 border-b border-gray-200 bg-white shadow-sm flex-shrink-0">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-2 mb-2">
-            <h1 className="text-xl font-semibold text-gray-800 order-1 sm:order-none truncate mr-2">
-              {bookTitle}
-            </h1>
-            <div className="flex items-center space-x-1 sm:space-x-2 order-2 sm:order-none flex-shrink-0">
-              <button title="Highlight" className="p-1.5 sm:p-2 rounded-md hover:bg-yellow-100 text-gray-600 hover:text-yellow-600">
-                <HighlightIcon className="w-5 h-5" />
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50">
+      {/* Enhanced Header */}
+      <div className="bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
+        <div className="px-3 md:px-4 py-3">
+          {/* Title and Controls Row */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex-1 min-w-0 mr-3 md:mr-4">
+              <h1 className="text-lg md:text-xl font-semibold text-gray-900 truncate">
+                {bookTitle}
+              </h1>
+              <p className="text-xs md:text-sm text-gray-500 mt-1">
+                {publicBookDetails.authors?.[0]?.name || 'Unknown Author'}
+              </p>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-1 md:space-x-2 flex-shrink-0">
+              <button 
+                title="Highlight" 
+                className="p-1.5 md:p-2 rounded-lg hover:bg-yellow-50 text-gray-600 hover:text-yellow-600 transition-colors"
+              >
+                <HighlightIcon className="w-4 h-4 md:w-5 md:h-5" />
               </button>
-              <button title="Add Bookmark" className="p-1.5 sm:p-2 rounded-md hover:bg-blue-100 text-gray-600 hover:text-blue-600">
-                <BookmarkIcon className="w-5 h-5" />
+              <button 
+                title="Add Bookmark" 
+                className="p-1.5 md:p-2 rounded-lg hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-colors"
+              >
+                <BookmarkIcon className="w-4 h-4 md:w-5 md:h-5" />
               </button>
-              <button title="Annotate" className="p-1.5 sm:p-2 rounded-md hover:bg-green-100 text-gray-600 hover:text-green-600">
-                <AnnotateIcon className="w-5 h-5" />
+              <button 
+                title="Annotate" 
+                className="p-1.5 md:p-2 rounded-lg hover:bg-green-50 text-gray-600 hover:text-green-600 transition-colors"
+              >
+                <AnnotateIcon className="w-4 h-4 md:w-5 md:h-5" />
               </button>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-2">
-            <div className="flex items-center space-x-2">
+
+          {/* Navigation and Progress Row */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
+            {/* Navigation Controls */}
+            <div className="flex items-center justify-center md:justify-start space-x-2 md:space-x-3">
               <Link 
                 href={currentChunkIndex > 0 ? `/reader/${userBookId}?chunk=${currentChunkIndex - 1}` : '#'}
-                className={`text-sm px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors ${currentChunkIndex === 0 ? 'pointer-events-none opacity-50' : ''}`}
+                className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors ${
+                  currentChunkIndex === 0 ? 'pointer-events-none opacity-50' : ''
+                }`}
               >
-                Prev
+                Previous
               </Link>
               
               <ChunkSelector
@@ -232,42 +262,242 @@ export default function ReaderPage() {
 
               <Link 
                 href={currentChunkIndex < bookChunks.length - 1 ? `/reader/${userBookId}?chunk=${currentChunkIndex + 1}` : '#'}
-                className={`text-sm px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors ${currentChunkIndex >= bookChunks.length - 1 ? 'pointer-events-none opacity-50' : ''}`}
+                className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors ${
+                  currentChunkIndex >= bookChunks.length - 1 ? 'pointer-events-none opacity-50' : ''
+                }`}
               >
                 Next
               </Link>
             </div>
-            <div className="w-full sm:w-auto sm:min-w-[180px]">
-              <input type="range" min="0" max="100" readOnly className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" value={readingProgress} />
-              <p className="text-xs text-gray-500 text-right mt-1">{readingProgress}%</p>
+
+            {/* Progress Bar */}
+            <div className="flex-1 md:max-w-xs">
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                <span>Progress</span>
+                <span>{readingProgress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-amber-500 h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${readingProgress}%` }}
+                ></div>
+              </div>
             </div>
           </div>
-          <div className="mt-1">
+
+          {/* Search Bar */}
+          <div className="mt-3">
             <SemanticSearch 
               bookId={publicBookDetails.id}
               onChunkSelect={handleChunkNavigation}
             />
           </div>
         </div>
+      </div>
 
-        {/* Reader Content */}
-        <div className="flex-grow overflow-y-auto p-4 sm:p-6 bg-white prose prose-sm sm:prose-base lg:prose-lg max-w-none">
-          <h2 className="text-xl font-semibold mb-2">{currentChapterTitle}</h2>
-          <div style={{ whiteSpace: "pre-wrap" }}>
-            {contentToShow}
+      {/* Main Content Area */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Reading Area - Now Takes Priority */}
+        <div className="flex-1 flex flex-col bg-white min-w-0">
+          {/* Chapter Header */}
+          <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900">{currentChapterTitle}</h2>
           </div>
+
+          {/* Reading Content */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-4xl mx-auto px-6 py-8">
+              <div className="prose prose-lg max-w-none">
+                <div 
+                  style={{ 
+                    whiteSpace: "pre-wrap", 
+                    lineHeight: "1.8",
+                    fontSize: "18px",
+                    fontFamily: "Georgia, 'Times New Roman', serif",
+                    color: "#374151"
+                  }}
+                  className="text-gray-800 leading-8"
+                >
+                  {contentToShow}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* AI Assistant Panel - Collapsible */}
+        <AIAssistantPanel
+          bookId={publicBookDetails.id}
+          currentChunkIndex={currentChunkIndex}
+          userTier="FREE"
+          readingMode={readingMode}
+          knowledgeLens={knowledgeLens}
+          userId={session?.user?.id || ''}
+        />
+      </div>
+    </div>
+  );
+}
+
+// New Collapsible AI Assistant Panel Component
+function AIAssistantPanel({
+  bookId,
+  currentChunkIndex,
+  userTier,
+  readingMode,
+  knowledgeLens,
+  userId
+}: {
+  bookId: number;
+  currentChunkIndex?: number;
+  userTier: 'FREE' | 'PREMIUM' | 'PRO';
+  readingMode: ReadingMode;
+  knowledgeLens: KnowledgeLens;
+  userId: string;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  // Mobile overlay version
+  if (typeof window !== 'undefined' && window.innerWidth < 768) {
+    return (
+      <>
+        {/* Mobile AI Toggle Button */}
+        <button
+          onClick={() => setIsMobileOpen(true)}
+          className="fixed bottom-6 right-6 z-40 w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full shadow-xl flex items-center justify-center text-white hover:shadow-2xl hover:scale-105 transition-all duration-300 md:hidden"
+          title="Open Lio"
+        >
+          <span className="text-2xl">🦁</span>
+        </button>
+
+        {/* Mobile AI Overlay */}
+        {isMobileOpen && (
+          <div className="fixed inset-0 z-50 md:hidden">
+            {/* Backdrop */}
+            <div 
+              className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
+              onClick={() => setIsMobileOpen(false)}
+            />
+            
+            {/* AI Panel */}
+            <div className="absolute inset-x-3 top-3 bottom-3 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+              {/* Mobile Header */}
+              <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gradient-to-r from-amber-50 to-orange-50">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center shadow-md">
+                    <span className="text-xl">🦁</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-lg">Lio</h3>
+                    <p className="text-sm text-gray-600">Your Literary Companion</p>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={() => setIsMobileOpen(false)}
+                  className="p-3 rounded-full hover:bg-amber-100 transition-colors"
+                  title="Close"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* AI Assistant Content */}
+              <div className="flex-1 overflow-hidden">
+                <AIAssistant
+                  bookId={bookId}
+                  currentChunkIndex={currentChunkIndex}
+                  userTier={userTier}
+                  readingMode={readingMode}
+                  knowledgeLens={knowledgeLens}
+                  userId={userId}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // Desktop minimized version
+  if (isMinimized) {
+    return (
+      <div className="w-20 bg-white border-l border-gray-200 flex flex-col items-center py-6 hidden md:flex shadow-sm">
+        <button
+          onClick={() => setIsMinimized(false)}
+          className="p-4 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 hover:from-amber-200 hover:to-orange-200 transition-all duration-200 shadow-sm hover:shadow-md"
+          title="Open Lio"
+        >
+          <span className="text-2xl">🦁</span>
+        </button>
+        <div className="mt-4 text-center">
+          <span className="text-xs text-gray-500 font-medium writing-mode-vertical transform rotate-180">
+            Lio
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop expanded/collapsed version - Now with better sizing for hero feature
+  return (
+    <div className={`bg-white border-l border-gray-200 flex-col transition-all duration-300 hidden md:flex shadow-lg ${
+      isExpanded ? 'w-[600px]' : 'w-[500px]'
+    }`}>
+      {/* AI Panel Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-amber-50 to-orange-50">
+        <div className="flex items-center space-x-3">
+          <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center shadow-md">
+            <span className="text-xl">🦁</span>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 text-lg">Lio</h3>
+            <p className="text-sm text-gray-600">Your Literary Companion</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-2 rounded-lg hover:bg-amber-100 transition-colors"
+            title={isExpanded ? "Collapse" : "Expand"}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {isExpanded ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              )}
+            </svg>
+          </button>
+          <button
+            onClick={() => setIsMinimized(true)}
+            className="p-2 rounded-lg hover:bg-amber-100 transition-colors"
+            title="Minimize"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            </svg>
+          </button>
         </div>
       </div>
 
-      {/* Right Pane (AI Assistant) */}
-      <AIAssistant
-        bookId={publicBookDetails.id}
-        currentChunkIndex={currentChunkIndex}
-        readingMode={readingMode}
-        knowledgeLens={knowledgeLens}
-        onReadingModeChange={setReadingMode}
-        onKnowledgeLensChange={setKnowledgeLens}
-      />
+      {/* AI Assistant Content */}
+      <div className="flex-1 overflow-hidden">
+        <AIAssistant
+          bookId={bookId}
+          currentChunkIndex={currentChunkIndex}
+          userTier={userTier}
+          readingMode={readingMode}
+          knowledgeLens={knowledgeLens}
+          userId={userId}
+        />
+      </div>
     </div>
   );
 } 

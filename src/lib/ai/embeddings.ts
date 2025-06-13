@@ -55,7 +55,7 @@ export async function searchSimilarChunks(
   try {
     const index = pinecone.index(PINECONE_INDEX_NAME);
     
-    const filter: Record<string, any> = { bookId };
+    const filter: Record<string, string | number> = { bookId };
     if (userId) {
       filter.userId = userId;
     }

@@ -1,95 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { generateRAGResponse, type RAGContext } from '@/lib/ai/rag';
 import { createSupabaseServerClient } from '@/utils/supabase/server';
-import { generateAIResponse, getUserTier, type RAGContext, type ChatMessage, type ReadingMode, type KnowledgeLens } from '@/lib/ai/rag';
-
-interface ChatRequest {
-  query: string;
-  bookId: number;
-  currentChunkIndex?: number;
-  readingMode: ReadingMode;
-  knowledgeLens: KnowledgeLens;
-  conversationHistory?: ChatMessage[];
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient();
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Parse request body
-    const body: ChatRequest = await request.json();
-    const { query, bookId, currentChunkIndex, readingMode, knowledgeLens, conversationHistory = [] } = body;
+    const body = await request.json();
+    const { 
+      query, 
+      bookId, 
+      currentChunkIndex, 
+      userTier = 'FREE',
+      readingMode = 'fiction',
+      knowledgeLens = 'literary',
+      userId
+    } = body;
 
     // Validate required fields
-    if (!query || !bookId || !readingMode || !knowledgeLens) {
+    if (!query || !bookId || !userId) {
       return NextResponse.json(
-        { error: 'Missing required fields: query, bookId, readingMode, knowledgeLens' },
+        { error: 'Missing required fields: query, bookId, and userId are required' },
         { status: 400 }
       );
     }
 
-    // Verify user has access to the book
-    const { data: userBook, error: bookError } = await supabase
-      .from('user_books')
-      .select('id, public_book_db_id')
-      .eq('user_id', user.id)
-      .eq('public_book_db_id', bookId)
-      .single();
-
-    if (bookError || !userBook) {
+    // Verify user authentication
+    const supabase = createSupabaseServerClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user || user.id !== userId) {
       return NextResponse.json(
-        { error: 'Book not found in user library' },
-        { status: 404 }
+        { error: 'Unauthorized' },
+        { status: 401 }
       );
     }
 
-    // Get user tier
-    const userTier = await getUserTier(user.id);
-
     // Build RAG context
-    const ragContext: RAGContext = {
-      bookId,
-      currentChunkIndex,
+    const context: RAGContext = {
+      bookId: parseInt(bookId),
+      currentChunkIndex: currentChunkIndex ? parseInt(currentChunkIndex) : undefined,
       userTier,
       readingMode,
       knowledgeLens,
-      userId: user.id,
+      userId
     };
 
-    // Generate AI response
-    const aiResponse = await generateAIResponse(query, ragContext, conversationHistory);
+    console.log('[AI Chat] Processing request:', {
+      userId,
+      bookId: context.bookId,
+      userTier,
+      readingMode,
+      knowledgeLens,
+      queryLength: query.length
+    });
+
+    // Generate enhanced AI response
+    const response = await generateRAGResponse(query, context);
 
     return NextResponse.json({
-      response: aiResponse,
-      userTier,
-      timestamp: new Date().toISOString(),
+      response,
+      context: {
+        userTier,
+        readingMode,
+        knowledgeLens,
+        timestamp: new Date().toISOString()
+      }
     });
 
   } catch (error) {
-    console.error('Error in AI chat API:', error);
+    console.error('[AI Chat] Error:', error);
     
-    if (error instanceof Error) {
-      if (error.message.includes('API key')) {
-        return NextResponse.json(
-          { error: 'AI service configuration error' },
-          { status: 503 }
-        );
-      }
-      if (error.message.includes('quota') || error.message.includes('rate limit')) {
-        return NextResponse.json(
-          { error: 'AI service temporarily unavailable. Please try again later.' },
-          { status: 429 }
-        );
-      }
-    }
-
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Failed to generate AI response',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

@@ -75,7 +75,7 @@ export async function GET(
     }
 
     // Get first few chunks as sample
-    const { data: sampleChunks, error: sampleError } = await supabase
+    const { data: sampleChunks } = await supabase
       .from('book_chunks')
       .select('chunk_index, content')
       .eq('public_book_id', userBook.public_book_db_id)

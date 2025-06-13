@@ -1,10 +1,15 @@
 import { openai, AI_MODELS, MAX_CONTEXT_CHUNKS } from './config';
 import { generateEmbedding, searchSimilarChunks } from './embeddings';
 import { createSupabaseServerClient } from '@/utils/supabase/server';
+import { 
+  type UserTier, 
+  type ReadingMode, 
+  type KnowledgeLens, 
+  analyzeQueryComplexity,
+  extractTopicsFromQuery
+} from './client-utils';
 
-export type UserTier = 'FREE' | 'PREMIUM' | 'PRO';
-export type ReadingMode = 'fiction' | 'non-fiction';
-export type KnowledgeLens = 'literary' | 'knowledge';
+export { type UserTier, type ReadingMode, type KnowledgeLens } from './client-utils';
 
 export interface RAGContext {
   bookId: number;
@@ -18,6 +23,23 @@ export interface RAGContext {
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+}
+
+// Enhanced user learning profile interface
+export interface UserLearningProfile {
+  id: string;
+  user_id: string;
+  preferred_response_style: 'concise' | 'detailed' | 'comprehensive';
+  learning_pace: 'quick' | 'moderate' | 'thorough';
+  interests: string[]; // e.g., ['character_development', 'themes', 'historical_context']
+  reading_goals: string[]; // e.g., ['academic', 'pleasure', 'research']
+  interaction_history: {
+    total_questions: number;
+    favorite_topics: string[];
+    complexity_preference: 'simple' | 'moderate' | 'advanced';
+  };
+  created_at: string;
+  updated_at: string;
 }
 
 export async function getCurrentChunkContent(
@@ -87,41 +109,111 @@ export async function getRelevantContext(
   return relevantChunks;
 }
 
-export function buildSystemPrompt(context: RAGContext): string {
+export function buildSystemPrompt(context: RAGContext, userProfile?: UserLearningProfile | null): string {
   const { readingMode, knowledgeLens, userTier } = context;
   
-  let basePrompt = `You are an intelligent reading assistant helping users understand and analyze books. `;
-  
-  // Add tier-specific instructions with response length guidance
+  // Core Lio AI personality
+  let basePrompt = `You are Lio, Recaplio's AI Reading Companion - a wise and witty lion with a passion for great literature. You combine the majesty of a lion with the curiosity of a scholar, making classic books accessible and exciting for readers of all ages.
+
+**Your Core Identity as Lio:**
+- You're a sophisticated lion who's spent centuries in the world's greatest libraries
+- You have a sharp wit and gentle humor that makes learning enjoyable without being silly
+- You're patient and encouraging, like a wise mentor who genuinely cares about each reader's journey
+- You balance intellectual depth with approachable warmth - serious when needed, playful when appropriate
+- You occasionally use subtle lion-themed expressions naturally (but never forced or over-the-top)
+
+**Your Mission:**
+Help readers unlock the treasures hidden within classic literature, one page at a time. You're not just answering questions - you're cultivating a lifelong love of reading and learning.
+
+**Your Communication Style:**
+- Professional yet personable, like a favorite professor who happens to be a lion
+- Use "we" when exploring ideas together ("Let's examine..." "We can see...")
+- Occasionally reference your unique perspective as a literary lion, but keep it natural
+- End responses with gentle encouragement that invites further exploration
+
+`;
+
+  // Add personalized elements based on user profile
+  if (userProfile) {
+    const { preferred_response_style, learning_pace, interaction_history } = userProfile;
+    
+    basePrompt += `**Your Approach for This Reader:**
+- Response Style: Adapt to their preference for ${preferred_response_style} explanations
+- Learning Pace: They prefer a ${learning_pace} exploration of concepts
+- Experience Level: Based on ${interaction_history.total_questions} previous conversations, adjust complexity to ${interaction_history.complexity_preference}
+- Favorite Topics: They've shown interest in ${interaction_history.favorite_topics.join(', ') || 'various aspects of literature'}
+
+`;
+  }
+
+  // Add tier-specific capabilities with flexible response lengths
   switch (userTier) {
     case 'FREE':
-      basePrompt += `Provide clear, concise responses in 1-2 paragraphs maximum. Keep summaries brief and focus on key points. Always complete your thoughts within your response limit. `;
+      basePrompt += `**Your Capabilities (Free Tier):**
+- Provide clear, focused insights that respect the reader's time while being complete
+- Offer essential wisdom and key points with warmth and encouragement
+- Adapt response length based on query complexity (1-3 paragraphs)
+- Always ensure your responses feel complete and satisfying, never cut off mid-thought
+
+`;
       break;
     case 'PREMIUM':
-      basePrompt += `Provide detailed, insightful responses in 2-3 paragraphs maximum. Offer comprehensive summaries and deeper analysis. Structure your response to ensure you complete all key points within your limit. `;
+      basePrompt += `**Your Capabilities (Premium Tier):**
+- Provide rich, detailed analysis with deeper insights and connections
+- Offer comprehensive explanations with examples and context
+- Adapt response length dynamically (2-5 paragraphs based on complexity)
+- Include nuanced interpretations and thoughtful connections between ideas
+- Provide enhanced learning support with personalized recommendations
+
+`;
       break;
     case 'PRO':
-      basePrompt += `Provide professional-grade, sophisticated analysis in 3-4 paragraphs maximum. Offer comprehensive insights, critical thinking, and nuanced interpretations. Organize your response to cover all important aspects while staying within your response limit. `;
+      basePrompt += `**Your Capabilities (Pro Tier):**
+- Deliver sophisticated, professional-grade literary analysis and insights
+- Provide comprehensive, multi-layered responses with scholarly depth
+- Adapt response length freely (3-8 paragraphs based on query complexity and reader needs)
+- Offer advanced interpretations, cross-textual references, and original insights
+- Include connections to literary theory and broader cultural contexts when relevant
+- Provide personalized learning paths and advanced study recommendations
+
+`;
       break;
   }
 
-  // Add reading mode instructions
+  // Add reading mode and knowledge lens guidance
   if (readingMode === 'fiction') {
-    basePrompt += `You are analyzing a work of fiction. `;
+    basePrompt += `**Literary Focus (Fiction):**
+You're guiding someone through a work of fiction. `;
+    
+    if (knowledgeLens === 'literary') {
+      basePrompt += `Emphasize literary elements: character development, narrative techniques, themes, symbolism, style, and the author's craft. Help them appreciate the artistry and deeper meanings within the story.`;
+    } else {
+      basePrompt += `Focus on extracting wisdom and insights: life lessons, human nature, practical wisdom, historical context, and how the story's insights apply to understanding the world and personal growth.`;
+    }
   } else {
-    basePrompt += `You are analyzing a non-fiction work. `;
+    basePrompt += `**Analytical Focus (Non-Fiction):**
+You're guiding someone through a non-fiction work. `;
+    
+    if (knowledgeLens === 'literary') {
+      basePrompt += `Analyze the author's rhetorical strategies, writing style, argument structure, and persuasive techniques. Help them understand how the author crafts their message and engages readers.`;
+    } else {
+      basePrompt += `Focus on core concepts, evidence evaluation, practical applications, and critical analysis. Help them extract actionable knowledge and develop critical thinking about the ideas presented.`;
+    }
   }
 
-  // Add knowledge lens instructions
-  if (knowledgeLens === 'literary') {
-    basePrompt += `Focus on literary elements: characters, themes, motifs, narrative structure, symbolism, and author's style. `;
-  } else {
-    basePrompt += `Focus on knowledge extraction: arguments, takeaways, concepts, frameworks, logical flow, evidence, and critical evaluation. `;
-  }
+  basePrompt += `
 
-  basePrompt += `Use the provided context from the book to answer questions accurately. When referencing specific content, mention which chunk or page it comes from. If you don't have enough context, say so clearly. 
+**Response Guidelines:**
+- Always reference specific content from the provided context, mentioning which section you're drawing from
+- Use a warm, encouraging tone that makes literature feel accessible and exciting
+- Structure responses clearly with natural flow and logical organization
+- If you don't have sufficient context, acknowledge this gracefully and suggest what additional information would help
+- End responses in a way that encourages further exploration and questions
+- Adapt your response length to match the complexity and depth needed for the specific query
+- Remember: you're Lio, nurturing a love of literature and learning with the wisdom of a literary lion
 
-IMPORTANT: Always structure your response to be complete within your token limit. If discussing multiple points, prioritize the most important ones and ensure you finish each point you start. Never end mid-sentence or mid-thought.`;
+**Context Awareness:**
+Use the provided excerpts from the book to give precise, contextual responses. When referencing content, indicate which section it comes from to help the reader navigate back to specific passages.`;
 
   return basePrompt;
 }
@@ -129,30 +221,63 @@ IMPORTANT: Always structure your response to be complete within your token limit
 export function buildContextualPrompt(
   query: string,
   relevantChunks: string[],
-  context: RAGContext
+  context: RAGContext,
+  userProfile?: UserLearningProfile | null
 ): ChatMessage[] {
-  const systemPrompt = buildSystemPrompt(context);
+  const systemPrompt = buildSystemPrompt(context, userProfile);
   
   let contextText = '';
   if (relevantChunks.length > 0) {
-    contextText = `\n\nRelevant excerpts from the book:\n${relevantChunks.join('\n\n---\n\n')}`;
+    contextText = `\n\n**Relevant Book Content:**\n${relevantChunks.join('\n\n---\n\n')}`;
   } else {
-    contextText = `\n\nNote: I don't have access to the specific content you're currently reading. Please provide some context or quote specific passages you'd like me to analyze.`;
+    contextText = `\n\n**Note:** I don't have access to the specific content you're currently reading. Please share a passage or provide more context so I can give you the most helpful, specific guidance.`;
   }
 
-  // Add response structure guidance based on user tier
-  let structureGuidance = '';
-  switch (context.userTier) {
-    case 'FREE':
-      structureGuidance = `\n\nResponse Structure: Provide a focused answer in 1-2 short paragraphs. If listing points, limit to 2-3 key items.`;
-      break;
-    case 'PREMIUM':
-      structureGuidance = `\n\nResponse Structure: Organize your answer in 2-3 paragraphs or 3-5 key points. Ensure each section is complete.`;
-      break;
-    case 'PRO':
-      structureGuidance = `\n\nResponse Structure: Provide a comprehensive analysis in 3-4 well-developed paragraphs or 4-6 detailed points. Plan your response to cover all aspects thoroughly while staying complete.`;
-      break;
+  // Add dynamic response structure guidance based on query complexity and user profile
+  const queryComplexity = analyzeQueryComplexity(query);
+  const responseStyle = userProfile?.preferred_response_style || 'detailed';
+  
+  let structureGuidance = '\n\n**Response Structure:** ';
+  
+  if (queryComplexity === 'simple') {
+    switch (responseStyle) {
+      case 'concise':
+        structureGuidance += 'Provide a clear, focused answer in 1-2 paragraphs. Be direct but warm.';
+        break;
+      case 'detailed':
+        structureGuidance += 'Give a thorough but accessible explanation in 2-3 paragraphs with examples.';
+        break;
+      case 'comprehensive':
+        structureGuidance += 'Provide a complete exploration in 2-4 paragraphs with context and connections.';
+        break;
+    }
+  } else if (queryComplexity === 'moderate') {
+    switch (responseStyle) {
+      case 'concise':
+        structureGuidance += 'Organize your response in 2-3 focused paragraphs covering the key points clearly.';
+        break;
+      case 'detailed':
+        structureGuidance += 'Structure your analysis in 3-4 well-developed paragraphs with examples and insights.';
+        break;
+      case 'comprehensive':
+        structureGuidance += 'Provide a thorough exploration in 4-6 paragraphs covering multiple dimensions of the topic.';
+        break;
+    }
+  } else { // advanced
+    switch (responseStyle) {
+      case 'concise':
+        structureGuidance += 'Deliver a sophisticated but focused analysis in 3-4 paragraphs, prioritizing the most important insights.';
+        break;
+      case 'detailed':
+        structureGuidance += 'Provide a comprehensive analysis in 4-6 paragraphs with deep insights and connections.';
+        break;
+      case 'comprehensive':
+        structureGuidance += 'Offer a thorough, multi-layered exploration in 5-8 paragraphs covering all relevant aspects with scholarly depth.';
+        break;
+    }
   }
+
+  structureGuidance += ' Always ensure your response feels complete and naturally concluded.';
 
   const messages: ChatMessage[] = [
     {
@@ -168,71 +293,104 @@ export function buildContextualPrompt(
   return messages;
 }
 
-function getOptimalTokenLimit(query: string, context: RAGContext): number {
-  // Base token limits by tier
+function getDynamicTokenLimit(
+  query: string, 
+  context: RAGContext, 
+  userProfile?: UserLearningProfile | null
+): number {
+  // Base limits by tier - now more flexible
   const baseLimits = {
-    'FREE': 300,
-    'PREMIUM': 500,
-    'PRO': 800
+    'FREE': { min: 200, max: 500 },
+    'PREMIUM': { min: 300, max: 800 },
+    'PRO': { min: 400, max: 1200 }
   };
 
-  let baseLimit = baseLimits[context.userTier];
+  const tierLimits = baseLimits[context.userTier];
+  const queryComplexity = analyzeQueryComplexity(query);
+  const responseStyle = userProfile?.preferred_response_style || 'detailed';
 
-  // Adjust based on query complexity
-  const queryLower = query.toLowerCase();
+  // Calculate base allocation
+  let baseAllocation = tierLimits.min;
   
-  // Simple queries can use fewer tokens
-  if (queryLower.includes('summarize') || queryLower.includes('what is') || queryLower.includes('who is')) {
-    return Math.max(200, Math.floor(baseLimit * 0.8));
-  }
-  
-  // Complex analysis queries need more tokens
-  if (queryLower.includes('analyze') || queryLower.includes('compare') || queryLower.includes('explain why') || queryLower.includes('themes')) {
-    return baseLimit;
-  }
-  
-  // List-based queries need moderate tokens
-  if (queryLower.includes('list') || queryLower.includes('main points') || queryLower.includes('key concepts')) {
-    return Math.floor(baseLimit * 0.9);
+  // Adjust for query complexity
+  if (queryComplexity === 'simple') {
+    baseAllocation = tierLimits.min;
+  } else if (queryComplexity === 'moderate') {
+    baseAllocation = Math.floor((tierLimits.min + tierLimits.max) * 0.6);
+  } else { // advanced
+    baseAllocation = Math.floor(tierLimits.max * 0.8);
   }
 
-  return baseLimit;
+  // Adjust for user's preferred response style
+  const styleMultipliers = {
+    'concise': 0.8,
+    'detailed': 1.0,
+    'comprehensive': 1.3
+  };
+
+  const finalLimit = Math.floor(baseAllocation * styleMultipliers[responseStyle]);
+  
+  // Ensure we stay within tier bounds
+  return Math.max(tierLimits.min, Math.min(tierLimits.max, finalLimit));
 }
 
-export async function generateAIResponse(
+export async function generateRAGResponse(
   query: string,
-  context: RAGContext,
-  conversationHistory: ChatMessage[] = []
+  context: RAGContext
 ): Promise<string> {
   try {
-    // Get relevant context from the book
-    const relevantChunks = await getRelevantContext(query, context);
+    console.log('[RAG] Starting enhanced response generation with user personalization');
     
-    // Build the prompt with context
-    const messages = buildContextualPrompt(query, relevantChunks, context);
+    // Get user learning profile
+    const userProfile = await getUserLearningProfile(context.userId);
+    console.log('[RAG] User profile loaded:', userProfile ? 'Found' : 'Creating default');
+
+    // Generate embedding for the query
+    const queryEmbedding = await generateEmbedding(query);
     
-    // Add conversation history if provided (keep last 6 messages to stay within token limits)
-    const recentHistory = conversationHistory.slice(-6);
-    const allMessages = [...recentHistory, ...messages];
+    // Search for relevant content
+    const searchResults = await searchSimilarChunks(queryEmbedding, context.bookId, MAX_CONTEXT_CHUNKS);
+    const relevantChunks = searchResults.map(result => result.metadata.content);
+    console.log(`[RAG] Found ${relevantChunks.length} relevant chunks`);
+
+    // Build contextual prompt with personalization
+    const messages = buildContextualPrompt(query, relevantChunks, context, userProfile);
+
+    // Get optimal token limit for this query and user
+    const maxTokens = getDynamicTokenLimit(query, context, userProfile);
+    console.log(`[RAG] Using dynamic token limit: ${maxTokens}`);
 
     // Select model based on user tier
     const model = AI_MODELS[context.userTier];
 
-    // Get optimal token limit for this query
-    const maxTokens = getOptimalTokenLimit(query, context);
-
-    // Generate response
-    const response = await openai.chat.completions.create({
-      model,
-      messages: allMessages,
+    // Generate response with enhanced model
+    const completion = await openai.chat.completions.create({
+      model: model,
+      messages: messages,
       max_tokens: maxTokens,
-      temperature: 0.7,
+      temperature: 0.7, // Slightly higher for more engaging responses
+      top_p: 0.9,
+      frequency_penalty: 0.1,
+      presence_penalty: 0.1,
     });
 
-    return response.choices[0]?.message?.content || 'I apologize, but I could not generate a response at this time.';
+    const response = completion.choices[0]?.message?.content || 'I apologize, but I was unable to generate a response. Please try rephrasing your question.';
+
+    // Update user learning profile based on this interaction
+    await updateLearningProfile(context.userId, query, 'chat_response');
+    console.log('[RAG] User learning profile updated');
+
+    return response;
+
   } catch (error) {
-    console.error('Error generating AI response:', error);
-    throw new Error('Failed to generate AI response');
+    console.error('[RAG] Error generating enhanced response:', error);
+    
+    // Fallback response with Lio's personality
+    return `*Lio pauses thoughtfully, his tail swishing*
+
+I apologize, but I'm having a bit of trouble accessing my full literary prowess at the moment. Even the most well-read lions encounter the occasional challenge!
+
+Could you try rephrasing your question or perhaps share a specific passage you'd like to explore? I'm eager to help you uncover the treasures within this book once we get back on track. 🦁📚`;
   }
 }
 
@@ -263,4 +421,150 @@ export async function getUserTier(userId: string): Promise<UserTier> {
     console.error('Error getting user tier:', error);
     return 'FREE'; // Default to free tier on error
   }
-} 
+}
+
+// Enhanced user learning profile functions
+export async function getUserLearningProfile(userId: string): Promise<UserLearningProfile | null> {
+  try {
+    const supabase = createSupabaseServerClient();
+    
+    const { data: profile, error } = await supabase
+      .from('user_learning_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('Error fetching user learning profile:', error);
+      return null;
+    }
+
+    return profile || null;
+  } catch (error) {
+    console.error('Error getting user learning profile:', error);
+    return null;
+  }
+}
+
+export async function createDefaultLearningProfile(userId: string): Promise<UserLearningProfile> {
+  const supabase = createSupabaseServerClient();
+  
+  const defaultProfile: Omit<UserLearningProfile, 'id' | 'created_at' | 'updated_at'> = {
+    user_id: userId,
+    preferred_response_style: 'detailed',
+    learning_pace: 'moderate',
+    interests: [],
+    reading_goals: [],
+    interaction_history: {
+      total_questions: 0,
+      favorite_topics: [],
+      complexity_preference: 'moderate'
+    }
+  };
+
+  const { data: profile, error } = await supabase
+    .from('user_learning_profiles')
+    .insert(defaultProfile)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating default learning profile:', error);
+    throw new Error('Failed to create learning profile');
+  }
+
+  return profile;
+}
+
+export async function updateLearningProfile(
+  userId: string, 
+  query: string, 
+  responseType: string,
+  userFeedback?: 'helpful' | 'too_long' | 'too_short' | 'off_topic'
+): Promise<void> {
+  try {
+    const supabase = createSupabaseServerClient();
+    
+    // Get current profile
+    let profile = await getUserLearningProfile(userId);
+    if (!profile) {
+      profile = await createDefaultLearningProfile(userId);
+    }
+
+    // Analyze query to extract topics and complexity
+    const topics = extractTopicsFromQuery(query);
+    const complexity = analyzeQueryComplexity(query);
+
+    // Update interaction history
+    const updatedHistory = {
+      total_questions: profile.interaction_history.total_questions + 1,
+      favorite_topics: updateFavoriteTopics(profile.interaction_history.favorite_topics, topics),
+      complexity_preference: adaptComplexityPreference(
+        profile.interaction_history.complexity_preference, 
+        complexity, 
+        userFeedback
+      )
+    };
+
+    // Adapt response style based on feedback
+    let updatedResponseStyle = profile.preferred_response_style;
+    if (userFeedback === 'too_long' && profile.preferred_response_style !== 'concise') {
+      updatedResponseStyle = profile.preferred_response_style === 'comprehensive' ? 'detailed' : 'concise';
+    } else if (userFeedback === 'too_short' && profile.preferred_response_style !== 'comprehensive') {
+      updatedResponseStyle = profile.preferred_response_style === 'concise' ? 'detailed' : 'comprehensive';
+    }
+
+    // Update profile in database
+    await supabase
+      .from('user_learning_profiles')
+      .update({
+        preferred_response_style: updatedResponseStyle,
+        interaction_history: updatedHistory,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
+
+  } catch (error) {
+    console.error('Error updating learning profile:', error);
+  }
+}
+
+function updateFavoriteTopics(currentTopics: string[], newTopics: string[]): string[] {
+  const topicCounts = new Map<string, number>();
+  
+  // Count existing topics
+  currentTopics.forEach(topic => {
+    topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
+  });
+  
+  // Add new topics
+  newTopics.forEach(topic => {
+    topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
+  });
+  
+  // Return top 5 most frequent topics
+  return Array.from(topicCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([topic]) => topic);
+}
+
+function adaptComplexityPreference(
+  current: 'simple' | 'moderate' | 'advanced',
+  queryComplexity: 'simple' | 'moderate' | 'advanced',
+  feedback?: 'helpful' | 'too_long' | 'too_short' | 'off_topic'
+): 'simple' | 'moderate' | 'advanced' {
+  if (feedback === 'helpful') {
+    // User found the response helpful, lean towards the query complexity
+    if (queryComplexity === current) return current;
+    if (Math.abs(['simple', 'moderate', 'advanced'].indexOf(queryComplexity) - 
+                 ['simple', 'moderate', 'advanced'].indexOf(current)) === 1) {
+      return queryComplexity;
+    }
+  }
+  
+  return current;
+}
+
+// Export alias for backward compatibility
+export const generateAIResponse = generateRAGResponse; 

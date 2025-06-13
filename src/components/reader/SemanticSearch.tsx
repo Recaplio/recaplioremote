@@ -183,7 +183,7 @@ export default function SemanticSearch({ bookId, onChunkSelect }: SemanticSearch
       {/* No Results */}
       {showResults && results.length === 0 && !isSearching && !error && (
         <div className="absolute top-full left-0 right-0 mt-1 p-4 bg-white border border-gray-200 rounded-md shadow-lg text-center z-50">
-          <p className="text-sm text-gray-500">No relevant passages found for "{query}"</p>
+          <p className="text-sm text-gray-500">No relevant passages found for &quot;{query}&quot;</p>
           <p className="text-xs text-gray-400 mt-1">Try different keywords or phrases</p>
         </div>
       )}

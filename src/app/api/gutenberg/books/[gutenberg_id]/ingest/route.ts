@@ -176,19 +176,22 @@ function chunkBookText(text: string): string[] {
 
 // --- NEW: Embedding Generation Function ---
 async function generateEmbeddingsForChunks(publicBookId: number, textChunks: string[]): Promise<void> {
-  console.log(`[generateEmbeddingsForChunks] Starting embedding generation for book ${publicBookId} with ${textChunks.length} chunks`);
+  console.log(`[generateEmbeddingsForChunks] Starting background embedding generation for book ${publicBookId} with ${textChunks.length} chunks`);
   
   try {
     // Initialize Pinecone index if needed
     await initializePineconeIndex();
     console.log(`[generateEmbeddingsForChunks] Pinecone index initialized`);
 
-    // Process chunks in batches to avoid rate limits
-    const batchSize = 3; // Smaller batch size during ingestion to be conservative
+    // Process chunks in larger batches for background processing
+    const batchSize = 10; // Increased batch size for faster processing
+    const totalBatches = Math.ceil(textChunks.length / batchSize);
+    
     for (let i = 0; i < textChunks.length; i += batchSize) {
       const batch = textChunks.slice(i, i + batchSize);
+      const currentBatch = Math.floor(i / batchSize) + 1;
       
-      console.log(`[generateEmbeddingsForChunks] Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(textChunks.length / batchSize)}`);
+      console.log(`[generateEmbeddingsForChunks] Processing batch ${currentBatch}/${totalBatches} (chunks ${i}-${i + batch.length - 1})`);
 
       await Promise.all(
         batch.map(async (chunkContent, batchIndex) => {
@@ -208,7 +211,9 @@ async function generateEmbeddingsForChunks(publicBookId: number, textChunks: str
               bookType: 'public',
             });
 
-            console.log(`[generateEmbeddingsForChunks] ✓ Generated embedding for chunk ${chunkIndex}`);
+            if (chunkIndex % 10 === 0) { // Log progress every 10 chunks
+              console.log(`[generateEmbeddingsForChunks] ✓ Processed ${chunkIndex + 1}/${textChunks.length} chunks`);
+            }
           } catch (error) {
             console.error(`[generateEmbeddingsForChunks] ✗ Error processing chunk ${chunkIndex}:`, error);
             // Continue with other chunks even if one fails
@@ -216,14 +221,14 @@ async function generateEmbeddingsForChunks(publicBookId: number, textChunks: str
         })
       );
 
-      // Add delay between batches to respect rate limits
+      // Reduced delay between batches - only add delay if we have more batches to process
       if (i + batchSize < textChunks.length) {
-        console.log('[generateEmbeddingsForChunks] Waiting 2 seconds before next batch...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Shorter delay for background processing
+        await new Promise(resolve => setTimeout(resolve, 500)); // Reduced from 2000ms to 500ms
       }
     }
 
-    console.log(`[generateEmbeddingsForChunks] ✓ Completed embedding generation for book ${publicBookId}`);
+    console.log(`[generateEmbeddingsForChunks] ✓ Completed background embedding generation for book ${publicBookId} (${textChunks.length} chunks)`);
   } catch (error) {
     console.error(`[generateEmbeddingsForChunks] Error generating embeddings for book ${publicBookId}:`, error);
     // Don't throw error - embeddings are not critical for basic functionality
@@ -283,15 +288,15 @@ export async function POST(
     // let bookDownloadCount: number | null = null; // Removed as it was not used
 
 
-    // 2. If not in public_books or missing essential data, fetch metadata from Gutendx
+    // 2. If not in public_books or missing essential data, fetch metadata from Gutendex
     if (!existingPublicBook || !rawTextUrl || !bookFormats) {
-      const gutendexResponse = await fetch(`https://gutendx.com/books/${numericGutenbergId}`);
+      const gutendexResponse = await fetch(`https://gutendex.com/books/${numericGutenbergId}`);
       if (!gutendexResponse.ok) {
         if (gutendexResponse.status === 404) {
-            return NextResponse.json({ error: `Book with Gutenberg ID ${numericGutenbergId} not found on Gutendx.` }, { status: 404 });
+            return NextResponse.json({ error: `Book with Gutenberg ID ${numericGutenbergId} not found on Gutendex.` }, { status: 404 });
         }
-        console.error('Gutendx API error:', gutendexResponse.status, await gutendexResponse.text());
-        return NextResponse.json({ error: 'Failed to fetch book metadata from Gutendx.' }, { status: 502 });
+        console.error('Gutendex API error:', gutendexResponse.status, await gutendexResponse.text());
+        return NextResponse.json({ error: 'Failed to fetch book metadata from Gutendex.' }, { status: 502 });
       }
       const bookData = await gutendexResponse.json();
 
@@ -303,7 +308,7 @@ export async function POST(
         null;
 
       if (!rawTextUrl) {
-        return NextResponse.json({ error: 'No suitable plain text URL found for this book on Gutendx.' }, { status: 404 });
+        return NextResponse.json({ error: 'No suitable plain text URL found for this book on Gutendex.' }, { status: 404 });
       }
 
       // 3. Upsert into public_books (insert or update if it existed but was missing URL)
@@ -402,9 +407,12 @@ export async function POST(
         return NextResponse.json({ error: 'Database error saving book chunks.', details: insertChunksError.message }, { status: 500 });
       }
 
-      // 8. NEW: Generate embeddings for the chunks
-      console.log(`Starting embedding generation for ${textChunks.length} chunks...`);
-      await generateEmbeddingsForChunks(publicBookDbId, textChunks);
+      // 8. NEW: Generate embeddings for the chunks ASYNCHRONOUSLY (don't await)
+      console.log(`Starting background embedding generation for ${textChunks.length} chunks...`);
+      // Don't await this - let it run in the background
+      generateEmbeddingsForChunks(publicBookDbId, textChunks).catch(error => {
+        console.error(`Background embedding generation failed for book ${publicBookDbId}:`, error);
+      });
     } else {
         console.log(`No chunks to insert for book ${publicBookDbId}.`);
     }
@@ -428,10 +436,11 @@ export async function POST(
 
     return NextResponse.json(
       { 
-        message: 'Book ingested successfully with embeddings.', 
+        message: 'Book ingested successfully. Embeddings are being generated in the background for AI features.', 
         book_id: publicBookDbId, 
         gutenberg_id: numericGutenbergId,
-        chunks_created: textChunks.length 
+        chunks_created: textChunks.length,
+        note: 'AI features will be available shortly as embeddings are processed.'
       },
       { status: 201 }
     );
