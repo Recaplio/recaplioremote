@@ -8,7 +8,8 @@ import {
   BookmarkIcon, 
   ChatBubbleLeftEllipsisIcon as AnnotateIcon
 } from '@heroicons/react/24/outline';
-import ChunkSelector from "@/components/reader/ChunkSelector";
+import SectionSelector from "@/components/reader/SectionSelector";
+import ReadingProgress from "@/components/reader/ReadingProgress";
 import AIAssistant from "@/components/reader/AIAssistant";
 import SemanticSearch from "@/components/reader/SemanticSearch";
 import { useAuth } from '@/app/components/auth/AuthProvider';
@@ -40,11 +41,41 @@ interface BookChunk {
   content: string;
 }
 
-const getCurrentChunkContent = (chunks: BookChunk[], currentChunkIndex: number): string => {
-  if (!chunks || chunks.length === 0) return "No content available for this chapter.";
-  const index = Math.max(0, Math.min(currentChunkIndex, chunks.length - 1));
+// Helper function to generate section previews and metadata
+const generateSectionPreviews = (chunks: BookChunk[]) => {
+  return chunks.map((chunk, index) => {
+    const content = chunk.content || '';
+    const words = content.split(/\s+/).filter(word => word.length > 0);
+    const wordCount = words.length;
+    const estimatedReadingTime = Math.max(1, Math.round(wordCount / 200)); // 200 WPM average
+    
+    // Generate a preview (first 150 characters)
+    const preview = content.length > 150 
+      ? content.substring(0, 150).trim() + '...'
+      : content;
+    
+    // Try to generate a smart title from the first sentence or paragraph
+    const firstSentence = content.split(/[.!?]/)[0]?.trim();
+    const title = firstSentence && firstSentence.length > 10 && firstSentence.length < 80
+      ? firstSentence
+      : `Section ${index + 1}`;
+    
+    return {
+      index,
+      title,
+      preview,
+      wordCount,
+      estimatedReadingTime,
+      isCompleted: false // This would be tracked in user progress
+    };
+  });
+};
+
+const getCurrentSectionContent = (chunks: BookChunk[], currentSectionIndex: number): string => {
+  if (!chunks || chunks.length === 0) return "No content available for this section.";
+  const index = Math.max(0, Math.min(currentSectionIndex, chunks.length - 1));
   const chunk = chunks[index];
-  return chunk?.content || "Error loading chunk content.";
+  return chunk?.content || "Error loading section content.";
 };
 
 export default function ReaderPage() {
@@ -55,6 +86,14 @@ export default function ReaderPage() {
   
   const [userBookData, setUserBookData] = useState<UserBookDataFromDB | null>(null);
   const [bookChunks, setBookChunks] = useState<BookChunk[] | null>(null);
+  const [sectionPreviews, setSectionPreviews] = useState<Array<{
+    index: number;
+    title: string;
+    preview: string;
+    wordCount: number;
+    estimatedReadingTime: number;
+    isCompleted: boolean;
+  }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [readingMode] = useState<ReadingMode>('fiction');
@@ -114,7 +153,13 @@ export default function ReaderPage() {
         return;
       }
 
-      setBookChunks(chunks || []);
+      const bookSections = chunks || [];
+      setBookChunks(bookSections);
+      
+      // Generate section previews
+      const previews = generateSectionPreviews(bookSections);
+      setSectionPreviews(previews);
+      
     } catch (err) {
       console.error('Error fetching book data:', err);
       setError('An error occurred while loading the book');
@@ -136,16 +181,16 @@ export default function ReaderPage() {
     }
   }, [session, userBookId, supabase, authLoading, fetchBookData, router]);
 
-  const updateReadingProgress = async (newChunkIndex: number) => {
+  const updateReadingProgress = async (newSectionIndex: number) => {
     if (!userBookData || !bookChunks) return;
 
     try {
-      const progressPercent = Math.round(((newChunkIndex + 1) / bookChunks.length) * 100);
+      const progressPercent = Math.round(((newSectionIndex + 1) / bookChunks.length) * 100);
       
       await supabase
         .from("user_books")
         .update({
-          current_chunk_index: newChunkIndex,
+          current_chunk_index: newSectionIndex,
           reading_progress_percent: progressPercent,
         })
         .eq("id", userBookData.id)
@@ -155,8 +200,8 @@ export default function ReaderPage() {
     }
   };
 
-  const handleChunkNavigation = (chunkIndex: number) => {
-    router.push(`/reader/${userBookId}?chunk=${chunkIndex}`);
+  const handleSectionNavigation = (sectionIndex: number) => {
+    router.push(`/reader/${userBookId}?chunk=${sectionIndex}`);
   };
 
   if (authLoading || loading) {
@@ -182,28 +227,28 @@ export default function ReaderPage() {
     );
   }
 
-  // Determine current chunk index
-  let resolvedChunkIndex = 0;
+  // Determine current section index
+  let resolvedSectionIndex = 0;
   if (chunkParam) {
     const parsedChunk = parseInt(chunkParam, 10);
     if (!isNaN(parsedChunk) && parsedChunk >= 0 && parsedChunk < bookChunks.length) {
-      resolvedChunkIndex = parsedChunk;
-      updateReadingProgress(resolvedChunkIndex);
+      resolvedSectionIndex = parsedChunk;
+      updateReadingProgress(resolvedSectionIndex);
     }
   } else if (userBookData.current_chunk_index !== null && userBookData.current_chunk_index < bookChunks.length) {
-    resolvedChunkIndex = userBookData.current_chunk_index;
+    resolvedSectionIndex = userBookData.current_chunk_index;
   }
 
-  const currentChunkIndex = Math.max(0, Math.min(resolvedChunkIndex, bookChunks.length - 1));
+  const currentSectionIndex = Math.max(0, Math.min(resolvedSectionIndex, bookChunks.length - 1));
   const publicBookDetails = userBookData.public_books;
   const bookTitle = publicBookDetails.title || "Book Title";
-  const readingProgress = Math.round(((currentChunkIndex + 1) / bookChunks.length) * 100);
-  const currentChapterTitle = `Chunk ${currentChunkIndex + 1} of ${bookChunks.length}`;
-  const contentToShow = getCurrentChunkContent(bookChunks, currentChunkIndex);
+  const readingProgress = Math.round(((currentSectionIndex + 1) / bookChunks.length) * 100);
+  const currentSectionTitle = sectionPreviews[currentSectionIndex]?.title || `Section ${currentSectionIndex + 1}`;
+  const contentToShow = getCurrentSectionContent(bookChunks, currentSectionIndex);
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50">
-      {/* Enhanced Header */}
+      {/* Enhanced Header with Book Info */}
       <div className="bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
         <div className="px-3 md:px-4 py-3">
           {/* Title and Controls Row */}
@@ -240,48 +285,35 @@ export default function ReaderPage() {
             </div>
           </div>
 
-          {/* Navigation and Progress Row */}
+          {/* Navigation Controls */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
-            {/* Navigation Controls */}
+            {/* Section Navigation */}
             <div className="flex items-center justify-center md:justify-start space-x-2 md:space-x-3">
               <Link 
-                href={currentChunkIndex > 0 ? `/reader/${userBookId}?chunk=${currentChunkIndex - 1}` : '#'}
+                href={currentSectionIndex > 0 ? `/reader/${userBookId}?chunk=${currentSectionIndex - 1}` : '#'}
                 className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors ${
-                  currentChunkIndex === 0 ? 'pointer-events-none opacity-50' : ''
+                  currentSectionIndex === 0 ? 'pointer-events-none opacity-50' : ''
                 }`}
               >
                 Previous
               </Link>
               
-              <ChunkSelector
+              <SectionSelector
                 basePath={`/reader/${userBookId}`}
-                currentChunkIndex={currentChunkIndex}
-                totalChunks={bookChunks.length}
+                currentSectionIndex={currentSectionIndex}
+                totalSections={bookChunks.length}
+                sectionPreviews={sectionPreviews}
                 disabled={bookChunks.length === 0}
               />
 
               <Link 
-                href={currentChunkIndex < bookChunks.length - 1 ? `/reader/${userBookId}?chunk=${currentChunkIndex + 1}` : '#'}
+                href={currentSectionIndex < bookChunks.length - 1 ? `/reader/${userBookId}?chunk=${currentSectionIndex + 1}` : '#'}
                 className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors ${
-                  currentChunkIndex >= bookChunks.length - 1 ? 'pointer-events-none opacity-50' : ''
+                  currentSectionIndex >= bookChunks.length - 1 ? 'pointer-events-none opacity-50' : ''
                 }`}
               >
                 Next
               </Link>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="flex-1 md:max-w-xs">
-              <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                <span>Progress</span>
-                <span>{readingProgress}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-amber-500 h-2 rounded-full transition-all duration-300" 
-                  style={{ width: `${readingProgress}%` }}
-                ></div>
-              </div>
             </div>
           </div>
 
@@ -289,19 +321,39 @@ export default function ReaderPage() {
           <div className="mt-3">
             <SemanticSearch 
               bookId={publicBookDetails.id}
-              onChunkSelect={handleChunkNavigation}
+              onSectionSelect={handleSectionNavigation}
             />
           </div>
         </div>
       </div>
 
+      {/* Enhanced Reading Progress */}
+      <ReadingProgress
+        currentSectionIndex={currentSectionIndex}
+        totalSections={bookChunks.length}
+        readingProgress={readingProgress}
+        sectionPreviews={sectionPreviews}
+        onSectionSelect={handleSectionNavigation}
+      />
+
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Reading Area - Now Takes Priority */}
+        {/* Reading Area */}
         <div className="flex-1 flex flex-col bg-white min-w-0">
-          {/* Chapter Header */}
+          {/* Section Header */}
           <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900">{currentChapterTitle}</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">{currentSectionTitle}</h2>
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <span>Section {currentSectionIndex + 1} of {bookChunks.length}</span>
+                {sectionPreviews[currentSectionIndex]?.estimatedReadingTime && (
+                  <>
+                    <span>•</span>
+                    <span>{sectionPreviews[currentSectionIndex].estimatedReadingTime} min read</span>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Reading Content */}
@@ -325,10 +377,10 @@ export default function ReaderPage() {
           </div>
         </div>
 
-        {/* AI Assistant Panel - Collapsible */}
+        {/* AI Assistant Panel */}
         <AIAssistantPanel
           bookId={publicBookDetails.id}
-          currentChunkIndex={currentChunkIndex}
+          currentChunkIndex={currentSectionIndex}
           userTier="FREE"
           readingMode={readingMode}
           knowledgeLens={knowledgeLens}

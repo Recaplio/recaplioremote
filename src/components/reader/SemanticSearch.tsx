@@ -12,10 +12,10 @@ interface SearchResult {
 
 interface SemanticSearchProps {
   bookId: number;
-  onChunkSelect: (chunkIndex: number) => void;
+  onSectionSelect: (sectionIndex: number) => void;
 }
 
-export default function SemanticSearch({ bookId, onChunkSelect }: SemanticSearchProps) {
+export default function SemanticSearch({ bookId, onSectionSelect }: SemanticSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -84,8 +84,8 @@ export default function SemanticSearch({ bookId, onChunkSelect }: SemanticSearch
     }
   };
 
-  const handleResultClick = (chunkIndex: number) => {
-    onChunkSelect(chunkIndex);
+  const handleResultClick = (sectionIndex: number) => {
+    onSectionSelect(sectionIndex);
     setShowResults(false);
     setQuery('');
   };
@@ -114,8 +114,8 @@ export default function SemanticSearch({ bookId, onChunkSelect }: SemanticSearch
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyPress}
           onFocus={() => results.length > 0 && setShowResults(true)}
-          placeholder="Semantic search in book (e.g., themes, characters)..."
-          className="w-full p-2 pl-8 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+          placeholder="Search within this book (themes, characters, concepts)..."
+          className="w-full p-2 pl-8 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500"
           disabled={isSearching}
         />
         
@@ -164,8 +164,8 @@ export default function SemanticSearch({ bookId, onChunkSelect }: SemanticSearch
               className="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
             >
               <div className="flex justify-between items-start mb-1">
-                <span className="text-xs font-medium text-indigo-600">
-                  Chunk {result.chunkIndex + 1}
+                <span className="text-xs font-medium text-brand-600">
+                  Section {result.chunkIndex + 1}
                 </span>
                 <span className={`text-xs font-medium ${getSimilarityColor(result.similarity)}`}>
                   {Math.round(result.similarity * 100)}% match
