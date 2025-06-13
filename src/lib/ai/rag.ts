@@ -1,6 +1,6 @@
 import { openai, AI_MODELS, MAX_CONTEXT_CHUNKS } from './config';
 import { generateEmbedding, searchSimilarChunks } from './embeddings';
-import { createSupabaseServerClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient, createSupabaseAdminClient } from '@/utils/supabase/server';
 import { 
   type UserTier, 
   type ReadingMode, 
@@ -47,9 +47,12 @@ export async function getCurrentChunkContent(
   chunkIndex: number
 ): Promise<string | null> {
   try {
-    const supabase = createSupabaseServerClient();
+    // Use admin client to bypass RLS issues
+    const adminSupabase = createSupabaseAdminClient();
     
-    const { data: chunk, error } = await supabase
+    console.log('[RAG] Fetching current chunk content:', { bookId, chunkIndex });
+    
+    const { data: chunk, error } = await adminSupabase
       .from('book_chunks')
       .select('content')
       .eq('public_book_id', bookId)
@@ -57,13 +60,14 @@ export async function getCurrentChunkContent(
       .single();
 
     if (error || !chunk) {
-      console.error('Error fetching current chunk:', error);
+      console.error('[RAG] Error fetching current chunk:', error);
       return null;
     }
 
+    console.log('[RAG] Successfully fetched chunk content, length:', chunk.content?.length || 0);
     return chunk.content;
   } catch (error) {
-    console.error('Error getting current chunk content:', error);
+    console.error('[RAG] Error getting current chunk content:', error);
     return null;
   }
 }
