@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, ThumbsUp, ThumbsDown, MoreHorizontal, ChevronUp } from 'lucide-react';
+import { Send, User, ThumbsUp, ThumbsDown, MoreHorizontal, ChevronUp, Zap } from 'lucide-react';
 import { getQuickActionButtons, type QuickActionButton, type ReadingMode, type KnowledgeLens } from '@/lib/ai/client-utils';
 
 interface Message {
@@ -40,6 +40,7 @@ export default function AIAssistant({
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(true);
+  const [isQuickActionsExpanded, setIsQuickActionsExpanded] = useState(false);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -97,7 +98,6 @@ export default function AIAssistant({
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
-    setShowQuickActions(false);
 
     try {
       const response = await fetch('/api/ai/chat', {
@@ -306,10 +306,67 @@ Please try your question again in a moment, and I'll be ready to help you explor
         </button>
       )}
 
-      {/* Quick Action Buttons */}
+      {/* Floating Quick Actions Button - Shows when quick actions are hidden */}
+      {!showQuickActions && messages.length > 2 && (
+        <button
+          onClick={() => setIsQuickActionsExpanded(!isQuickActionsExpanded)}
+          className="absolute top-4 left-4 z-10 p-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:from-amber-600 hover:to-orange-600"
+          title="Quick Actions"
+        >
+          <Zap className="w-5 h-5" />
+        </button>
+      )}
+
+      {/* Expandable Quick Actions Panel */}
+      {isQuickActionsExpanded && (
+        <div className="absolute top-16 left-4 right-4 z-10 bg-white border border-gray-200 rounded-xl shadow-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center">
+              <Zap className="w-4 h-4 mr-2 text-amber-500" />
+              Quick Actions
+            </h3>
+            <button
+              onClick={() => setIsQuickActionsExpanded(false)}
+              className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+            >
+              <ChevronUp className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
+            {quickActionButtons.map((button) => (
+              <button
+                key={button.id}
+                onClick={() => {
+                  handleQuickAction(button);
+                  setIsQuickActionsExpanded(false);
+                }}
+                disabled={isLoading}
+                className="flex items-center space-x-3 p-3 text-left bg-gray-50 hover:bg-amber-50 hover:border-amber-200 border border-gray-200 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="text-base flex-shrink-0">{button.icon}</span>
+                <span className="text-gray-700 font-medium text-sm leading-tight">{button.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Initial Quick Action Buttons - Show for first-time users */}
       {showQuickActions && messages.length <= 2 && (
         <div className="px-6 py-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
-          <p className="text-sm text-gray-700 mb-4 font-semibold">Quick Actions:</p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-gray-700 font-semibold flex items-center">
+              <Zap className="w-4 h-4 mr-2 text-amber-500" />
+              Quick Actions:
+            </p>
+            <button
+              onClick={() => setShowQuickActions(false)}
+              className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+              title="Hide quick actions (you can access them anytime with the ⚡ button)"
+            >
+              Hide
+            </button>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             {quickActionButtons.slice(0, 4).map((button) => (
               <button
@@ -325,10 +382,11 @@ Please try your question again in a moment, and I'll be ready to help you explor
           </div>
           {quickActionButtons.length > 4 && (
             <button
-              onClick={() => setShowQuickActions(false)}
-              className="w-full mt-3 p-3 text-sm text-gray-600 hover:text-gray-800 transition-colors font-medium"
+              onClick={() => setIsQuickActionsExpanded(true)}
+              className="w-full mt-3 p-3 text-sm text-amber-600 hover:text-amber-700 transition-colors font-medium flex items-center justify-center"
             >
-              Show more options...
+              <Zap className="w-4 h-4 mr-2" />
+              Show all {quickActionButtons.length} quick actions...
             </button>
           )}
         </div>
@@ -355,9 +413,20 @@ Please try your question again in a moment, and I'll be ready to help you explor
             <Send className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-sm text-gray-500 mt-3 font-medium">
-          Lio learns your reading style and gets wiser with each conversation 🦁
-        </p>
+        <div className="flex items-center justify-between mt-3">
+          <p className="text-sm text-gray-500 font-medium">
+            Lio learns your reading style and gets wiser with each conversation 🦁
+          </p>
+          {!showQuickActions && messages.length > 2 && (
+            <button
+              onClick={() => setIsQuickActionsExpanded(!isQuickActionsExpanded)}
+              className="text-xs text-amber-600 hover:text-amber-700 font-medium flex items-center transition-colors"
+            >
+              <Zap className="w-3 h-3 mr-1" />
+              Quick Actions
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
