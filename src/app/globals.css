@@ -17,5 +17,67 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom component styles */
+@layer components {
+  /* Enhanced button base styles */
+  .btn-base {
+    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+  
+  /* Primary button with brand colors */
+  .btn-primary {
+    @apply btn-base bg-gradient-to-r from-brand-500 to-secondary-500 text-white shadow-md hover:shadow-lg hover:from-brand-600 hover:to-secondary-600 focus-visible:ring-brand-500 transform hover:-translate-y-0.5;
+  }
+  
+  /* Secondary button */
+  .btn-secondary {
+    @apply btn-base bg-white text-brand-700 border border-brand-200 shadow-sm hover:bg-brand-50 hover:border-brand-300 focus-visible:ring-brand-500;
+  }
+  
+  /* Outline button */
+  .btn-outline {
+    @apply btn-base border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-400 focus-visible:ring-gray-500;
+  }
+  
+  /* Card styles */
+  .card-base {
+    @apply bg-white rounded-xl border border-gray-200 shadow-soft hover:shadow-medium transition-all duration-300;
+  }
+  
+  /* Input styles */
+  .input-base {
+    @apply block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 shadow-sm transition-colors focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-500;
+  }
+  
+  /* Loading spinner */
+  .spinner {
+    @apply animate-spin rounded-full border-2 border-gray-200 border-t-brand-500;
+  }
+  
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-brand-600 via-secondary-500 to-brand-500 bg-clip-text text-transparent;
+  }
+}
+
+/* Custom utilities */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }

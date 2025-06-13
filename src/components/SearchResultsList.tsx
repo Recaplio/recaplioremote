@@ -102,18 +102,20 @@ const SearchResultsList = forwardRef<HTMLDivElement, SearchResultsListProps>((
                     )}
                     
                     {canRead && (
-                        <Link href={`/reader/${bookIdForLink}`} legacyBehavior>
-                          <a className="inline-block px-3 py-1.5 text-xs bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors whitespace-nowrap">
-                            Start Reading Now!
-                          </a>
+                        <Link 
+                          href={`/reader/${bookIdForLink}`}
+                          className="inline-block px-3 py-1.5 text-xs bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors whitespace-nowrap"
+                        >
+                          Start Reading Now!
                         </Link>
                     )}
 
                     {(isDirectSuccess || currentMessage === ALREADY_IN_LIBRARY_MESSAGE) && (
-                        <Link href="/library" legacyBehavior>
-                          <a className="inline-block px-3 py-1.5 text-xs bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition-colors whitespace-nowrap">
-                            Go to Library
-                          </a>
+                        <Link 
+                          href="/library"
+                          className="inline-block px-3 py-1.5 text-xs bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition-colors whitespace-nowrap"
+                        >
+                          Go to Library
                         </Link>
                     )}
                     

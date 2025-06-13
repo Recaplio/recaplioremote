@@ -17,37 +17,37 @@ import {
 } from '@heroicons/react/24/outline'; // Primarily using outline icons for a cleaner look
 import { useAuth } from '@/app/components/auth/AuthProvider'; // Added useAuth import
 
-// Placeholder for a more elaborate icon or illustration component
+// Enhanced Reading Illustration with better animations
 const ReadingIllustration = () => (
   <div className="relative aspect-[4/3] max-w-xl lg:max-w-none group">
-    <div className="absolute inset-0 bg-gradient-to-tr from-indigo-300 to-blue-300 opacity-20 rounded-3xl transform -rotate-3 group-hover:rotate-0 group-hover:scale-105 transition-transform duration-300 ease-in-out"></div>
-    <div className="relative bg-white p-6 sm:p-8 rounded-2xl shadow-xl transform rotate-1 group-hover:rotate-0 group-hover:scale-105 transition-transform duration-300 ease-in-out">
-        <BookOpenIcon className="w-3/4 h-3/4 mx-auto text-indigo-500 opacity-70" />
-        <div className="absolute bottom-4 right-4 bg-indigo-600 p-3 rounded-full shadow-lg transform group-hover:scale-110 transition-transform duration-200 ease-in-out">
+    <div className="absolute inset-0 bg-gradient-to-tr from-brand-300 to-secondary-300 opacity-20 rounded-3xl transform -rotate-3 group-hover:rotate-0 group-hover:scale-105 transition-transform duration-500 ease-in-out"></div>
+    <div className="relative bg-white p-6 sm:p-8 rounded-2xl shadow-strong transform rotate-1 group-hover:rotate-0 group-hover:scale-105 transition-transform duration-500 ease-in-out border border-gray-100">
+        <BookOpenIcon className="w-3/4 h-3/4 mx-auto text-brand-500 opacity-70" />
+        <div className="absolute bottom-4 right-4 bg-gradient-to-br from-brand-500 to-secondary-500 p-3 rounded-full shadow-lg transform group-hover:scale-110 transition-transform duration-300 ease-in-out">
             <LightBulbIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
         </div>
-         <div className="absolute top-4 left-4 bg-green-500 p-2 rounded-full shadow-lg transform group-hover:scale-110 transition-transform duration-200 ease-in-out">
+         <div className="absolute top-4 left-4 bg-gradient-to-br from-green-500 to-emerald-500 p-2 rounded-full shadow-lg transform group-hover:scale-110 transition-transform duration-300 ease-in-out">
             <SparklesIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         </div>
     </div>
   </div>
 );
 
-// Updated Placeholder for Feature Spotlight Visuals
-const FeatureVisualPlaceholder = ({ title, icon: Icon, iconBgColor = 'bg-indigo-500', bgColorClass = 'bg-slate-100' }: { title: string, icon: React.ElementType, iconBgColor?: string, bgColorClass?: string }) => (
-  <div className={`relative aspect-video ${bgColorClass} rounded-xl shadow-lg flex flex-col items-center justify-center p-8 transform transition-all duration-300 hover:shadow-2xl group overflow-hidden`}>
+// Enhanced Feature Visual with brand colors
+const FeatureVisualPlaceholder = ({ title, icon: Icon, iconBgColor = 'bg-brand-500', bgColorClass = 'bg-gray-50' }: { title: string, icon: React.ElementType, iconBgColor?: string, bgColorClass?: string }) => (
+  <div className={`relative aspect-video ${bgColorClass} rounded-xl shadow-medium flex flex-col items-center justify-center p-8 transform transition-all duration-300 hover:shadow-strong group overflow-hidden border border-gray-100`}>
     <div className={`absolute -top-8 -right-8 w-32 h-32 ${iconBgColor} opacity-20 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500 ease-in-out`}></div>
     <div className={`p-4 sm:p-5 rounded-full ${iconBgColor} text-white mb-4 sm:mb-6 shadow-md group-hover:scale-110 transition-transform duration-300 ease-in-out`}>
       <Icon className="w-8 h-8 sm:w-10 sm:h-10" />
     </div>
-    <p className="text-slate-700 text-base sm:text-lg font-semibold text-center">{title}</p>
-    <p className="text-xs text-slate-500 mt-1">Visual Representation</p>
+    <p className="text-gray-700 text-base sm:text-lg font-semibold text-center">{title}</p>
+    <p className="text-xs text-gray-500 mt-1">Visual Representation</p>
   </div>
 );
 
-// Placeholder for a testimonial avatar (can stay simple)
+// Enhanced Avatar with brand colors
 const AvatarPlaceholder = ({ initial }: { initial: string }) => (
-  <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-semibold text-lg shadow-md ring-2 ring-white">
+  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-100 to-secondary-100 flex items-center justify-center text-brand-700 font-semibold text-lg shadow-md ring-2 ring-white">
     {initial}
   </div>
 );
@@ -73,8 +73,8 @@ export default function HomePage() {
       name: 'Personalized Study Tools',
       description: 'Create flashcards from highlights, generate quizzes, and recap your learning to solidify knowledge and prepare for exams.',
       icon: PuzzlePieceIcon,
-      iconColor: 'text-amber-500',
-      bgColor: 'bg-amber-50'
+      iconColor: 'text-brand-500',
+      bgColor: 'bg-brand-50'
     },
      {
       name: 'Focus on Understanding',
@@ -107,17 +107,19 @@ export default function HomePage() {
 
   return (
     <div className="bg-white text-gray-800 overflow-x-hidden antialiased">
-      {/* Hero Section */}
-      <section className="relative pt-20 pb-24 md:pt-32 md:pb-36 bg-gradient-to-br from-indigo-50 via-white to-sky-50 overflow-hidden">
-        <div className="absolute inset-0 opacity-50 mix-blend-multiply">
-          {/* Subtle pattern or blurred shapes could be added here if desired */}
+      {/* Enhanced Hero Section */}
+      <section className="relative pt-20 pb-24 md:pt-32 md:pb-36 bg-gradient-to-br from-brand-50 via-white to-secondary-50 overflow-hidden">
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-brand-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-bounce-gentle"></div>
+          <div className="absolute top-40 right-10 w-72 h-72 bg-secondary-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-bounce-gentle" style={{ animationDelay: '2s' }}></div>
+          <div className="absolute -bottom-8 left-20 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-bounce-gentle" style={{ animationDelay: '4s' }}></div>
         </div>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <div className="text-center lg:text-left">
+            <div className="text-center lg:text-left animate-fade-in">
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-gray-900 leading-tight">
                 Unlock Deeper Understanding from
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-sky-500 to-green-500 mt-1 sm:mt-2">Every Book You Read.</span>
+                <span className="block gradient-text mt-1 sm:mt-2">Every Book You Read.</span>
               </h1>
               <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-xl mx-auto lg:mx-0 leading-relaxed">
                 Recaplio is your intelligent reading companion, transforming your reading into active learning with AI-powered summaries, interactive knowledge maps, and personalized study tools.
@@ -125,20 +127,20 @@ export default function HomePage() {
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-5">
                 <Link
                   href={session ? "/discover" : "/signup"}
-                  className="w-full sm:w-auto inline-flex items-center justify-center px-7 py-3.5 sm:px-8 sm:py-4 border border-transparent text-base font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                  className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-brand-500 to-secondary-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl hover:from-brand-600 hover:to-secondary-600 transition-all duration-200 transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500"
                 >
                   {session ? "Discover New Books" : "Get Started for Free"}
                   <ArrowRightIcon className="ml-2.5 h-5 w-5" />
                 </Link>
                 <Link
                   href="/#features"
-                  className="w-full sm:w-auto inline-flex items-center justify-center px-7 py-3.5 sm:px-8 sm:py-4 border border-indigo-200 text-base font-semibold rounded-lg text-indigo-700 bg-white hover:bg-indigo-50 shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
+                  className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 border-2 border-brand-200 text-brand-700 bg-white hover:bg-brand-50 font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500"
                 >
                   Learn More
                 </Link>
               </div>
             </div>
-            <div className="hidden lg:flex justify-center items-center mt-8 lg:mt-0">
+            <div className="hidden lg:flex justify-center items-center mt-8 lg:mt-0 animate-slide-up">
               <ReadingIllustration />
             </div>
           </div>
@@ -148,8 +150,8 @@ export default function HomePage() {
       {/* Features Overview Section */}
       <section id="features" className="py-16 md:py-24 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 md:mb-16">
-            <span className="text-indigo-600 font-semibold tracking-wide uppercase">Why Recaplio?</span>
+          <div className="text-center mb-12 md:mb-16 animate-fade-in">
+            <span className="text-brand-600 font-semibold tracking-wide uppercase">Why Recaplio?</span>
             <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tighter text-gray-900 sm:leading-tight">
               Elevate Your Reading Experience
             </h2>
@@ -158,8 +160,12 @@ export default function HomePage() {
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature) => (
-              <div key={feature.name} className={`p-6 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ${feature.bgColor} group`}>
+            {features.map((feature, index) => (
+              <div 
+                key={feature.name} 
+                className={`p-6 rounded-xl shadow-medium hover:shadow-strong transition-all duration-300 ${feature.bgColor} group transform hover:-translate-y-1 animate-slide-up`}
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
                 <div className={`flex items-center justify-center h-12 w-12 rounded-lg ${feature.iconColor} ${feature.bgColor.replace('bg-','bg-opacity-50')} mb-5 ring-2 ring-inset ring-current group-hover:scale-110 transition-transform`}>
                   <feature.icon className={`h-7 w-7 ${feature.iconColor}`} aria-hidden="true" />
                 </div>
@@ -172,14 +178,14 @@ export default function HomePage() {
       </section>
 
       {/* Feature Spotlight: AI Assistant */}
-      <section className="py-16 md:py-24 bg-slate-50">
+      <section className="py-16 md:py-24 bg-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <div className="order-2 lg:order-1">
-              <FeatureVisualPlaceholder title="AI Assistant in Action" icon={ChatBubbleLeftRightIcon} iconBgColor="bg-indigo-500" bgColorClass="bg-indigo-100" />
+              <FeatureVisualPlaceholder title="AI Assistant in Action" icon={ChatBubbleLeftRightIcon} iconBgColor="bg-brand-500" bgColorClass="bg-brand-100" />
             </div>
             <div className="order-1 lg:order-2">
-              <span className="inline-block px-3.5 py-1.5 text-sm font-semibold text-indigo-700 bg-indigo-100 rounded-full mb-4">Intelligent Guidance</span>
+              <span className="inline-block px-3.5 py-1.5 text-sm font-semibold text-brand-700 bg-brand-100 rounded-full mb-4">Intelligent Guidance</span>
               <h3 className="text-3xl sm:text-4xl font-bold tracking-tighter text-gray-900 mb-5">
                 Your AI Reading Partner
               </h3>
@@ -240,10 +246,10 @@ export default function HomePage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-16 md:py-24 bg-slate-50">
+      <section className="py-16 md:py-24 bg-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 md:mb-16">
-             <span className="text-indigo-600 font-semibold tracking-wide uppercase">Get Started</span>
+             <span className="text-brand-600 font-semibold tracking-wide uppercase">Get Started</span>
             <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tighter text-gray-900 sm:leading-tight">
               Simple Steps to Smarter Reading
             </h2>
@@ -253,14 +259,14 @@ export default function HomePage() {
           </div>
           <div className="relative max-w-5xl mx-auto">
             {/* Decorative line connecting step icons - for medium screens and up */}
-            <div className="hidden md:block absolute top-8 left-1/2 right-0 h-0.5 bg-gradient-to-r from-indigo-200 via-sky-200 to-transparent w-full" style={{ transform: 'translateX(-25%)', width: 'calc(50% - 4rem)' }}></div>
-            <div className="hidden md:block absolute top-8 right-1/2 left-0 h-0.5 bg-gradient-to-l from-indigo-200 via-sky-200 to-transparent w-full" style={{ transform: 'translateX(25%)', width: 'calc(50% - 4rem)' }}></div>
+            <div className="hidden md:block absolute top-8 left-1/2 right-0 h-0.5 bg-gradient-to-r from-brand-200 via-secondary-200 to-transparent w-full" style={{ transform: 'translateX(-25%)', width: 'calc(50% - 4rem)' }}></div>
+            <div className="hidden md:block absolute top-8 right-1/2 left-0 h-0.5 bg-gradient-to-l from-brand-200 via-secondary-200 to-transparent w-full" style={{ transform: 'translateX(25%)', width: 'calc(50% - 4rem)' }}></div>
 
             <div className="grid md:grid-cols-3 gap-x-8 gap-y-16 md:gap-y-12 relative">
               {howItWorksSteps.map((step, index) => (
-                <div key={step.id} className="relative flex flex-col items-center text-center p-6 bg-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 group">
+                <div key={step.id} className="relative flex flex-col items-center text-center p-6 bg-white rounded-xl shadow-medium hover:shadow-strong transition-all duration-300 transform hover:-translate-y-1 group">
                   <div className="absolute -top-7 left-1/2 transform -translate-x-1/2">
-                    <div className="flex items-center justify-center h-14 w-14 rounded-full bg-gradient-to-br from-indigo-600 to-sky-500 text-white shadow-lg ring-4 ring-slate-50 group-hover:scale-110 transition-transform">
+                    <div className="flex items-center justify-center h-14 w-14 rounded-full bg-gradient-to-br from-brand-600 to-secondary-500 text-white shadow-lg ring-4 ring-gray-50 group-hover:scale-110 transition-transform">
                        <step.icon className="h-7 w-7" aria-hidden="true" />
                     </div>
                   </div>
@@ -277,7 +283,7 @@ export default function HomePage() {
       <section className="py-16 md:py-24 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 md:mb-16">
-            <span className="text-indigo-600 font-semibold tracking-wide uppercase">Don&apos;t Just Take Our Word</span>
+            <span className="text-brand-600 font-semibold tracking-wide uppercase">Don&apos;t Just Take Our Word</span>
             <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tighter text-gray-900 sm:leading-tight">
               Loved by Readers & Learners Like You
             </h2>
@@ -287,12 +293,12 @@ export default function HomePage() {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[1, 2, 3].map((testimonialId) => (
-              <div key={testimonialId} className="bg-slate-50/70 p-6 sm:p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
-                <SparklesIcon className="w-7 h-7 text-amber-400 mb-3" /> {/* Decorative icon */}
+              <div key={testimonialId} className="bg-gray-50 p-6 sm:p-8 rounded-xl shadow-medium hover:shadow-strong transition-all duration-300 flex flex-col transform hover:-translate-y-1">
+                <SparklesIcon className="w-7 h-7 text-brand-400 mb-3" /> {/* Decorative icon */}
                 <p className="text-gray-700 leading-relaxed mb-6 flex-grow">
                   &quot;This is a placeholder testimonial. Recaplio has genuinely changed the way I approach complex texts. The AI summaries and concept maps are game-changers! Highly recommended for students and lifelong learners.&quot;
                 </p>
-                <div className="flex items-center mt-auto pt-4 border-t border-slate-200">
+                <div className="flex items-center mt-auto pt-4 border-t border-gray-200">
                   <AvatarPlaceholder initial={['A','B','C'][testimonialId-1]} />
                   <div className="ml-4">
                     <p className="font-semibold text-gray-900">User Name {testimonialId}</p>
@@ -306,18 +312,18 @@ export default function HomePage() {
       </section>
 
       {/* Pricing Teaser Section */}
-      <section className="py-16 md:py-24 bg-gradient-to-br from-indigo-600 via-sky-600 to-blue-700 text-white">
+      <section className="py-16 md:py-24 bg-gradient-to-br from-brand-600 via-secondary-600 to-brand-700 text-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <SparklesIcon className="w-10 h-10 text-amber-300 mx-auto mb-4"/>
+          <SparklesIcon className="w-10 h-10 text-brand-300 mx-auto mb-4"/>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tighter mb-5">
             Ready to Supercharge Your Reading?
           </h2>
-          <p className="text-lg sm:text-xl text-indigo-100 max-w-3xl mx-auto mb-10 leading-relaxed">
+          <p className="text-lg sm:text-xl text-brand-100 max-w-3xl mx-auto mb-10 leading-relaxed">
             Recaplio offers a range of plans to suit your needs, from casual readers to dedicated learners. Explore our features and find the perfect fit to unlock your full reading potential.
           </p>
           <Link
             href="/plans"
-            className="inline-block px-10 py-4 border-2 border-white text-base sm:text-lg font-semibold rounded-lg hover:bg-white hover:text-indigo-700 transition-all duration-200 transform hover:scale-105 shadow-xl hover:shadow-2xl"
+            className="inline-block px-10 py-4 border-2 border-white text-base sm:text-lg font-semibold rounded-lg hover:bg-white hover:text-brand-700 transition-all duration-200 transform hover:scale-105 shadow-xl hover:shadow-2xl"
           >
             Explore Our Plans & Features
           </Link>
@@ -327,7 +333,7 @@ export default function HomePage() {
       {/* Final Call to Action Section */}
       <section className="py-16 md:py-24 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <AcademicCapIcon className="w-10 h-10 text-indigo-600 mx-auto mb-4" />
+          <AcademicCapIcon className="w-10 h-10 text-brand-600 mx-auto mb-4" />
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tighter text-gray-900 mb-4">
             Transform Your Reading Today
           </h2>
@@ -336,7 +342,7 @@ export default function HomePage() {
           </p>
           <Link
             href={session ? "/library" : "/signup"}
-            className="inline-flex items-center justify-center px-8 py-4 sm:px-10 sm:py-4 border border-transparent text-base sm:text-lg font-semibold rounded-lg text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-0.5"
+            className="inline-flex items-center justify-center px-8 py-4 sm:px-10 sm:py-4 border border-transparent text-base sm:text-lg font-semibold rounded-lg text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-1"
           >
             {session ? "Go to Your Library" : "Sign Up for Free Now"}
             <ArrowRightIcon className="ml-3 h-5 w-5" />
