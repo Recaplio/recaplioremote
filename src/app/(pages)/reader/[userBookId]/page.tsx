@@ -41,6 +41,12 @@ interface BookChunk {
   content: string;
 }
 
+interface APIChunkData {
+  chunk_index: number;
+  content: string;
+  chapter_title?: string;
+}
+
 // Helper function to generate section previews and metadata
 const generateSectionPreviews = (chunks: BookChunk[]) => {
   return chunks.map((chunk, index) => {
@@ -154,7 +160,7 @@ export default function ReaderPage() {
       setUserBookData(userBookData);
 
       // Convert chunks to expected format
-      const bookSections: BookChunk[] = (data.chunks || []).map((chunk: any) => ({
+      const bookSections: BookChunk[] = (data.chunks || []).map((chunk: APIChunkData) => ({
         chunk_index: chunk.chunk_index,
         content: chunk.content
       }));
