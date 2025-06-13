@@ -114,46 +114,51 @@ export default function ReaderPage() {
         return;
       }
 
-      // Fetch user book data
-      const { data: userBook, error: userBookError } = await supabase
-        .from("user_books")
-        .select(`
-          id,
-          user_id,
-          public_book_db_id,
-          current_chunk_index, 
-          public_books!inner (
-            id,
-            title,
-            authors,
-            gutenberg_id
-          )
-        `)
-        .eq("id", userBookIdNum)
-        .eq("user_id", session.user.id)
-        .single<UserBookDataFromDB>();
-
-      if (userBookError || !userBook) {
-        setError('Book not found or access denied');
+      console.log('[Reader] Fetching book via API for userBookId:', userBookId);
+      
+      // Use the API endpoint that bypasses RLS issues
+      const response = await fetch(`/api/user-library/books/${userBookId}`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          setError('Book not found in your library');
+        } else {
+          setError(`Failed to fetch book: ${response.status}`);
+        }
         return;
       }
-
-      setUserBookData(userBook);
-
-      // Fetch book chunks
-      const { data: chunks, error: chunksError } = await supabase
-        .from("book_chunks")
-        .select("chunk_index, content")
-        .eq("public_book_id", userBook.public_books.id)
-        .order("chunk_index", { ascending: true })
-        .returns<BookChunk[]>();
-
-      if (chunksError) {
-        setError('Error loading book content');
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        setError(data.error);
         return;
       }
+      
+      console.log('[Reader] API returned book data:', data);
 
-      const bookSections = chunks || [];
+      // Convert API response to the expected format
+      const userBookData: UserBookDataFromDB = {
+        id: data.userBook.id,
+        user_id: session.user.id,
+        public_book_db_id: data.publicBook.id,
+        current_chunk_index: data.userBook.currentChunkIndex,
+        public_books: {
+          id: data.publicBook.id,
+          title: data.publicBook.title,
+          authors: data.publicBook.authors,
+          gutenberg_id: data.publicBook.gutenbergId
+        }
+      };
+
+      setUserBookData(userBookData);
+
+      // Convert chunks to expected format
+      const bookSections: BookChunk[] = (data.chunks || []).map((chunk: any) => ({
+        chunk_index: chunk.chunk_index,
+        content: chunk.content
+      }));
+
       setBookChunks(bookSections);
       
       // Generate section previews

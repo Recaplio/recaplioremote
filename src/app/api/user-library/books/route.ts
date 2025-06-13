@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createSupabaseServerClient, createSupabaseAdminClient } from '@/utils/supabase/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const supabase = createSupabaseServerClient();
     const adminSupabase = createSupabaseAdminClient();
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     // Fetch public books using admin client (this bypasses RLS)
     const { data: publicBooks, error: publicBooksError } = await adminSupabase
       .from('public_books')
-      .select('id, gutenberg_id, title, authors, genre, cover_image_url')
+      .select('id, gutenberg_id, title, authors')
       .in('id', publicBookIds);
 
     if (publicBooksError) {
@@ -52,11 +52,11 @@ export async function GET(request: NextRequest) {
         userBookId: userBook.id,
         publicBookId: userBook.public_book_db_id,
         title: publicBook?.title || `Book ${userBook.id}`,
-        author: publicBook?.authors?.map((a: any) => a.name).join(', ') || 'Unknown Author',
-        genre: publicBook?.genre || 'N/A',
+        author: publicBook?.authors?.map((a: { name: string }) => a.name).join(', ') || 'Unknown Author',
+        genre: 'N/A',
         readingProgress: userBook.reading_progress_percent || 0,
         isPinned: userBook.is_pinned || false,
-        coverImageUrl: publicBook?.cover_image_url,
+        coverImageUrl: undefined,
         gutenbergId: publicBook?.gutenberg_id,
         readingMode: userBook.reading_mode,
         currentChunkIndex: userBook.current_chunk_index,

@@ -75,8 +75,8 @@ export async function GET(
         title: publicBook.title,
         authors: publicBook.authors,
         gutenbergId: publicBook.gutenberg_id,
-        genre: publicBook.genre,
-        coverImageUrl: publicBook.cover_image_url
+        genre: 'N/A',
+        coverImageUrl: undefined
       },
       chunks: chunks || []
     };
