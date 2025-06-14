@@ -466,7 +466,7 @@ export async function getUserTier(userId: string): Promise<UserTier> {
         if (devTierCookie && ['FREE', 'PREMIUM', 'PRO'].includes(devTierCookie.value)) {
           return devTierCookie.value as UserTier;
         }
-      } catch (cookieError) {
+      } catch {
         // Cookies might not be available in this context, continue with other methods
       }
     }
@@ -499,7 +499,7 @@ export async function getUserTier(userId: string): Promise<UserTier> {
             return 'FREE';
         }
       }
-    } catch (subscriptionError) {
+    } catch {
       console.log('Subscriptions table not available, using fallback tier detection');
     }
 

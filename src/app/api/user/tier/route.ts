@@ -78,7 +78,7 @@ export async function GET() {
           message: `Using tier from subscription: ${tier}`
         });
       }
-    } catch (subscriptionError) {
+    } catch {
       console.log('Subscriptions table not available, using fallback tier detection');
     }
 
@@ -87,7 +87,7 @@ export async function GET() {
       tier: 'FREE',
       source: 'default',
       message: 'Using default FREE tier (no subscription found)'
-    });
+    }, { status: 200 }); // Still return 200 with FREE tier
 
   } catch (error) {
     console.error('Error determining user tier:', error);

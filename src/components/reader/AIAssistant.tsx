@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, ThumbsUp, ThumbsDown, MoreHorizontal, ChevronUp, Zap, ChevronDown, X } from 'lucide-react';
+import { Send, User, ThumbsUp, ThumbsDown, MoreHorizontal, ChevronUp, Zap, ChevronDown } from 'lucide-react';
 import { getQuickActionButtons, type QuickActionButton, type ReadingMode, type KnowledgeLens } from '@/lib/ai/client-utils';
 
 interface Message {
@@ -39,7 +39,6 @@ export default function AIAssistant({
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showQuickActions, setShowQuickActions] = useState(true);
   const [isQuickActionsExpanded, setIsQuickActionsExpanded] = useState(false);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [processingQuickAction, setProcessingQuickAction] = useState<string | null>(null);
