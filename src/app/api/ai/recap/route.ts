@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
     switch (userTier) {
       case 'FREE':
-        aiModel = 'gpt-3.5-turbo';
+        aiModel = 'gpt-4o-mini';
         recapPrompt = `Provide a brief recap of what the user has learned from "${userBook.title}" based on their ${recapScope}. 
 
 Content:
@@ -171,7 +171,7 @@ Format as a clear, easy-to-read summary.`;
         break;
 
       case 'PREMIUM':
-        aiModel = 'gpt-3.5-turbo-16k';
+        aiModel = 'gpt-4o';
         recapPrompt = `Provide a comprehensive recap of what the user has learned from "${userBook.title}" based on their ${recapScope}.
 
 Content:
@@ -188,7 +188,7 @@ Format with clear sections and engaging language.`;
         break;
 
       case 'PRO':
-        aiModel = 'gpt-4-turbo-preview';
+        aiModel = 'gpt-4o';
         recapPrompt = `Provide a professional-grade learning recap of "${userBook.title}" based on the user's ${recapScope}.
 
 Content:

@@ -104,6 +104,7 @@ export default function ReaderPage() {
   const [error, setError] = useState<string | null>(null);
   const [readingMode] = useState<ReadingMode>('fiction');
   const [knowledgeLens] = useState<KnowledgeLens>('literary');
+  const [userTier, setUserTier] = useState<'FREE' | 'PREMIUM' | 'PRO'>('FREE');
 
   const userBookId = params?.userBookId as string;
   const chunkParam = searchParams?.get('chunk');
@@ -179,6 +180,25 @@ export default function ReaderPage() {
     }
   }, [session, supabase, userBookId]);
 
+  const fetchUserTier = useCallback(async () => {
+    if (!session?.user) return;
+
+    try {
+      const response = await fetch('/api/user/tier');
+      if (response.ok) {
+        const data = await response.json();
+        setUserTier(data.tier || 'FREE');
+        console.log('[Reader] User tier:', data.tier || 'FREE');
+      } else {
+        console.warn('[Reader] Failed to fetch user tier, defaulting to FREE');
+        setUserTier('FREE');
+      }
+    } catch (error) {
+      console.error('[Reader] Error fetching user tier:', error);
+      setUserTier('FREE');
+    }
+  }, [session]);
+
   useEffect(() => {
     // Don't redirect immediately - wait for auth to load
     if (!authLoading && !session?.user) {
@@ -189,8 +209,9 @@ export default function ReaderPage() {
     // Only fetch data when we have a session and userBookId
     if (session?.user && userBookId && !authLoading) {
       fetchBookData();
+      fetchUserTier();
     }
-  }, [session, userBookId, supabase, authLoading, fetchBookData, router]);
+  }, [session, userBookId, supabase, authLoading, fetchBookData, fetchUserTier, router]);
 
   const updateReadingProgress = async (newSectionIndex: number) => {
     if (!userBookData || !bookChunks) return;
@@ -392,7 +413,7 @@ export default function ReaderPage() {
         <AIAssistantPanel
           bookId={publicBookDetails.id}
           currentChunkIndex={currentSectionIndex}
-          userTier="FREE"
+          userTier={userTier}
           readingMode={readingMode}
           knowledgeLens={knowledgeLens}
           userId={session?.user?.id || ''}

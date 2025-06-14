@@ -13,9 +13,9 @@ export const pinecone = new Pinecone({
 
 // AI Model Configuration based on user tiers
 export const AI_MODELS = {
-  FREE: 'gpt-3.5-turbo',
-  PREMIUM: 'gpt-3.5-turbo-16k',
-  PRO: 'gpt-4-turbo-preview'
+  FREE: 'gpt-4o-mini',
+  PREMIUM: 'gpt-4o',
+  PRO: 'gpt-4o'
 } as const;
 
 // Embedding Configuration

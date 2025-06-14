@@ -59,12 +59,38 @@ export async function getCurrentChunkContent(
       .eq('chunk_index', chunkIndex)
       .single();
 
-    if (error || !chunk) {
+    if (error) {
       console.error('[RAG] Error fetching current chunk:', error);
+      
+      // Try alternative query in case the chunk_index is off by one
+      console.log('[RAG] Trying alternative chunk index queries...');
+      
+      // Try chunk_index - 1 and chunk_index + 1
+      for (const altIndex of [chunkIndex - 1, chunkIndex + 1]) {
+        if (altIndex >= 0) {
+          const { data: altChunk, error: altError } = await adminSupabase
+            .from('book_chunks')
+            .select('content')
+            .eq('public_book_id', bookId)
+            .eq('chunk_index', altIndex)
+            .single();
+          
+          if (!altError && altChunk) {
+            console.log(`[RAG] Found content at alternative chunk index ${altIndex}`);
+            return altChunk.content;
+          }
+        }
+      }
+      
       return null;
     }
 
-    console.log('[RAG] Successfully fetched chunk content, length:', chunk.content?.length || 0);
+    if (!chunk || !chunk.content) {
+      console.warn('[RAG] Chunk found but no content available');
+      return null;
+    }
+
+    console.log('[RAG] Successfully fetched chunk content, length:', chunk.content.length);
     return chunk.content;
   } catch (error) {
     console.error('[RAG] Error getting current chunk content:', error);
@@ -78,24 +104,33 @@ export async function getRelevantContext(
 ): Promise<string[]> {
   const relevantChunks: string[] = [];
 
-  // Always include current chunk content if available
+  // Always try to include current chunk content if available
   if (context.currentChunkIndex !== undefined) {
+    console.log(`[RAG] Attempting to fetch current chunk ${context.currentChunkIndex} for book ${context.bookId}`);
     const currentContent = await getCurrentChunkContent(context.bookId, context.currentChunkIndex);
     if (currentContent) {
       relevantChunks.push(`[Current Page/Chunk ${context.currentChunkIndex + 1}]\n${currentContent}`);
+      console.log(`[RAG] Successfully included current chunk content (${currentContent.length} chars)`);
+    } else {
+      console.warn(`[RAG] Could not retrieve current chunk ${context.currentChunkIndex} for book ${context.bookId}`);
     }
+  } else {
+    console.log('[RAG] No current chunk index provided');
   }
 
   // Try to get additional context from embeddings
   try {
+    console.log('[RAG] Searching for additional relevant context via embeddings...');
+    
     // Generate embedding for the query
     const queryEmbedding = await generateEmbedding(query);
     
     // Search for similar chunks (excluding current chunk if it's already included)
+    const maxAdditionalChunks = MAX_CONTEXT_CHUNKS - (relevantChunks.length > 0 ? 1 : 0);
     const similarChunks = await searchSimilarChunks(
       queryEmbedding,
       context.bookId,
-      MAX_CONTEXT_CHUNKS - (relevantChunks.length > 0 ? 1 : 0), // Leave room for current chunk
+      maxAdditionalChunks,
       context.userId
     );
 
@@ -105,11 +140,13 @@ export async function getRelevantContext(
       .map(chunk => `[Related Content - Chunk ${chunk.metadata.chunkIndex + 1}]\n${chunk.metadata.content}`);
     
     relevantChunks.push(...additionalChunks);
+    console.log(`[RAG] Added ${additionalChunks.length} additional relevant chunks from embeddings`);
   } catch (error) {
-    console.error('Error getting relevant context from embeddings:', error);
+    console.error('[RAG] Error getting relevant context from embeddings:', error);
     // Continue with just the current chunk if embeddings fail
   }
 
+  console.log(`[RAG] Total relevant chunks assembled: ${relevantChunks.length}`);
   return relevantChunks;
 }
 
@@ -231,8 +268,17 @@ export function buildContextualPrompt(
   const systemPrompt = buildSystemPrompt(context, userProfile);
   
   let contextText = '';
+  let hasCurrentChunk = false;
+  
   if (relevantChunks.length > 0) {
+    // Check if we have current chunk content
+    hasCurrentChunk = relevantChunks.some(chunk => chunk.includes('[Current Page/Chunk'));
+    
     contextText = `\n\n**Relevant Book Content:**\n${relevantChunks.join('\n\n---\n\n')}`;
+    
+    if (hasCurrentChunk) {
+      contextText += `\n\n**IMPORTANT**: The content marked as "[Current Page/Chunk X]" is what the reader is currently viewing. When answering questions like "summarize this chapter" or "what's happening here", prioritize this current content. For other questions, you can draw from all provided content but always mention which section you're referencing.`;
+    }
   } else {
     contextText = `\n\n**Note:** I don't have access to the specific content you're currently reading. Please share a passage or provide more context so I can give you the most helpful, specific guidance.`;
   }
@@ -273,28 +319,26 @@ export function buildContextualPrompt(
         structureGuidance += 'Deliver a sophisticated but focused analysis in 3-4 paragraphs, prioritizing the most important insights.';
         break;
       case 'detailed':
-        structureGuidance += 'Provide a comprehensive analysis in 4-6 paragraphs with deep insights and connections.';
+        structureGuidance += 'Provide a comprehensive analysis in 4-6 paragraphs with deep insights and scholarly connections.';
         break;
       case 'comprehensive':
-        structureGuidance += 'Offer a thorough, multi-layered exploration in 5-8 paragraphs covering all relevant aspects with scholarly depth.';
+        structureGuidance += 'Deliver a thorough, multi-layered exploration in 5-8 paragraphs covering all relevant dimensions and connections.';
         break;
     }
   }
 
-  structureGuidance += ' Always ensure your response feels complete and naturally concluded.';
+  const fullSystemPrompt = systemPrompt + contextText + structureGuidance;
 
-  const messages: ChatMessage[] = [
+  return [
     {
       role: 'system',
-      content: systemPrompt + contextText + structureGuidance,
+      content: fullSystemPrompt
     },
     {
       role: 'user',
-      content: query,
-    },
+      content: query
+    }
   ];
-
-  return messages;
 }
 
 function getDynamicTokenLimit(
@@ -344,18 +388,21 @@ export async function generateRAGResponse(
 ): Promise<string> {
   try {
     console.log('[RAG] Starting enhanced response generation with user personalization');
+    console.log('[RAG] Context:', { 
+      bookId: context.bookId, 
+      currentChunkIndex: context.currentChunkIndex,
+      userTier: context.userTier,
+      readingMode: context.readingMode,
+      knowledgeLens: context.knowledgeLens
+    });
     
     // Get user learning profile
     const userProfile = await getUserLearningProfile(context.userId);
     console.log('[RAG] User profile loaded:', userProfile ? 'Found' : 'Creating default');
 
-    // Generate embedding for the query
-    const queryEmbedding = await generateEmbedding(query);
-    
-    // Search for relevant content
-    const searchResults = await searchSimilarChunks(queryEmbedding, context.bookId, MAX_CONTEXT_CHUNKS);
-    const relevantChunks = searchResults.map(result => result.metadata.content);
-    console.log(`[RAG] Found ${relevantChunks.length} relevant chunks`);
+    // FIXED: Use getRelevantContext instead of generic search to include current chunk
+    const relevantChunks = await getRelevantContext(query, context);
+    console.log(`[RAG] Found ${relevantChunks.length} relevant chunks (including current context)`);
 
     // Build contextual prompt with personalization
     const messages = buildContextualPrompt(query, relevantChunks, context, userProfile);
@@ -402,25 +449,61 @@ export async function getUserTier(userId: string): Promise<UserTier> {
   try {
     const supabase = createSupabaseServerClient();
     
-    const { data: subscription } = await supabase
-      .from('subscriptions')
-      .select('plan_id')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .single();
-
-    if (!subscription) {
-      return 'FREE';
+    // Development override - check environment variable first
+    const devTierOverride = process.env.DEV_USER_TIER_OVERRIDE;
+    if (devTierOverride && ['FREE', 'PREMIUM', 'PRO'].includes(devTierOverride)) {
+      return devTierOverride as UserTier;
     }
 
-    switch (subscription.plan_id) {
-      case 'premium':
-        return 'PREMIUM';
-      case 'pro':
-        return 'PRO';
-      default:
-        return 'FREE';
+    // Check for development tier override in cookies (for individual user testing)
+    const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
+    if (isDevelopment) {
+      try {
+        const { cookies } = await import('next/headers');
+        const cookieStore = await cookies();
+        const devTierCookie = cookieStore.get('dev_user_tier');
+        
+        if (devTierCookie && ['FREE', 'PREMIUM', 'PRO'].includes(devTierCookie.value)) {
+          return devTierCookie.value as UserTier;
+        }
+      } catch (cookieError) {
+        // Cookies might not be available in this context, continue with other methods
+      }
     }
+
+    // Get user to check metadata
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && user.user_metadata?.tier) {
+      const metadataTier = user.user_metadata.tier;
+      if (['FREE', 'PREMIUM', 'PRO'].includes(metadataTier)) {
+        return metadataTier as UserTier;
+      }
+    }
+
+    // Try to check subscriptions table (production)
+    try {
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('plan_id')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .single();
+
+      if (subscription) {
+        switch (subscription.plan_id) {
+          case 'premium':
+            return 'PREMIUM';
+          case 'pro':
+            return 'PRO';
+          default:
+            return 'FREE';
+        }
+      }
+    } catch (subscriptionError) {
+      console.log('Subscriptions table not available, using fallback tier detection');
+    }
+
+    return 'FREE'; // Default to free tier
   } catch (error) {
     console.error('Error getting user tier:', error);
     return 'FREE'; // Default to free tier on error

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, ThumbsUp, ThumbsDown, MoreHorizontal, ChevronUp, Zap } from 'lucide-react';
+import { Send, User, ThumbsUp, ThumbsDown, MoreHorizontal, ChevronUp, Zap, ChevronDown, X } from 'lucide-react';
 import { getQuickActionButtons, type QuickActionButton, type ReadingMode, type KnowledgeLens } from '@/lib/ai/client-utils';
 
 interface Message {
@@ -42,6 +42,7 @@ export default function AIAssistant({
   const [showQuickActions, setShowQuickActions] = useState(true);
   const [isQuickActionsExpanded, setIsQuickActionsExpanded] = useState(false);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const [processingQuickAction, setProcessingQuickAction] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const lastAssistantMessageRef = useRef<HTMLDivElement>(null);
@@ -98,6 +99,7 @@ export default function AIAssistant({
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
+    setProcessingQuickAction(null); // Clear any quick action processing state
 
     try {
       const response = await fetch('/api/ai/chat', {
@@ -145,10 +147,12 @@ Please try your question again in a moment, and I'll be ready to help you explor
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      setProcessingQuickAction(null);
     }
   };
 
   const handleQuickAction = (button: QuickActionButton) => {
+    setProcessingQuickAction(button.id);
     handleSendMessage(button.prompt);
   };
 
@@ -182,6 +186,26 @@ Please try your question again in a moment, and I'll be ready to help you explor
       e.preventDefault();
       handleSendMessage(inputValue);
     }
+  };
+
+  // Organize quick actions by category for better UX
+  const organizedQuickActions = quickActionButtons.reduce((acc, button) => {
+    const category = button.category || 'General';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(button);
+    return acc;
+  }, {} as Record<string, QuickActionButton[]>);
+
+  // Improve category display names
+  const categoryDisplayNames: Record<string, string> = {
+    'summary': '📝 Summary & Overview',
+    'analysis': '🔍 Analysis & Insights', 
+    'character': '👥 Characters & People',
+    'context': '🌍 Context & Background',
+    'learning': '🎓 Learning & Growth',
+    'creative': '🎨 Creative & Interpretation',
+    'discussion': '💬 Discussion & Questions',
+    'connections': '🔗 Connections & Links'
   };
 
   return (
@@ -282,10 +306,17 @@ Please try your question again in a moment, and I'll be ready to help you explor
                 <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center">
                   <span className="text-lg">🦁</span>
                 </div>
-                <div className="flex space-x-2">
-                  <div className="w-3 h-3 bg-amber-500 rounded-full animate-bounce"></div>
-                  <div className="w-3 h-3 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-3 h-3 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="flex items-center space-x-3">
+                  <div className="flex space-x-2">
+                    <div className="w-3 h-3 bg-amber-500 rounded-full animate-bounce"></div>
+                    <div className="w-3 h-3 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-3 h-3 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                  {processingQuickAction && (
+                    <span className="text-sm text-gray-600 font-medium">
+                      Processing your request...
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -306,91 +337,99 @@ Please try your question again in a moment, and I'll be ready to help you explor
         </button>
       )}
 
-      {/* Floating Quick Actions Button - Shows when quick actions are hidden */}
-      {!showQuickActions && messages.length > 2 && (
-        <button
-          onClick={() => setIsQuickActionsExpanded(!isQuickActionsExpanded)}
-          className="absolute top-4 left-4 z-10 p-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:from-amber-600 hover:to-orange-600"
-          title="Quick Actions"
-        >
-          <Zap className="w-5 h-5" />
-        </button>
-      )}
-
-      {/* Expandable Quick Actions Panel */}
-      {isQuickActionsExpanded && (
-        <div className="absolute top-16 left-4 right-4 z-10 bg-white border border-gray-200 rounded-xl shadow-xl p-4">
+      {/* Persistent Quick Actions Bar - Always visible */}
+      <div className="border-t border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
+        <div className="px-6 py-3">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-700 flex items-center">
-              <Zap className="w-4 h-4 mr-2 text-amber-500" />
-              Quick Actions
-            </h3>
+            <div className="flex items-center space-x-2">
+              <Zap className="w-4 h-4 text-amber-500" />
+              <span className="text-sm font-semibold text-gray-700">Quick Actions</span>
+              <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full">
+                {quickActionButtons.length} available
+              </span>
+            </div>
             <button
-              onClick={() => setIsQuickActionsExpanded(false)}
-              className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+              onClick={() => setIsQuickActionsExpanded(!isQuickActionsExpanded)}
+              className="flex items-center space-x-1 text-xs text-amber-600 hover:text-amber-700 font-medium transition-colors"
             >
-              <ChevronUp className="w-4 h-4 text-gray-500" />
+              <span>{isQuickActionsExpanded ? 'Collapse' : 'Expand'}</span>
+              {isQuickActionsExpanded ? (
+                <ChevronUp className="w-3 h-3" />
+              ) : (
+                <ChevronDown className="w-3 h-3" />
+              )}
             </button>
           </div>
-          <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
-            {quickActionButtons.map((button) => (
-              <button
-                key={button.id}
-                onClick={() => {
-                  handleQuickAction(button);
-                  setIsQuickActionsExpanded(false);
-                }}
-                disabled={isLoading}
-                className="flex items-center space-x-3 p-3 text-left bg-gray-50 hover:bg-amber-50 hover:border-amber-200 border border-gray-200 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className="text-base flex-shrink-0">{button.icon}</span>
-                <span className="text-gray-700 font-medium text-sm leading-tight">{button.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* Initial Quick Action Buttons - Show for first-time users */}
-      {showQuickActions && messages.length <= 2 && (
-        <div className="px-6 py-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-gray-700 font-semibold flex items-center">
-              <Zap className="w-4 h-4 mr-2 text-amber-500" />
-              Quick Actions:
-            </p>
-            <button
-              onClick={() => setShowQuickActions(false)}
-              className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-              title="Hide quick actions (you can access them anytime with the ⚡ button)"
-            >
-              Hide
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {quickActionButtons.slice(0, 4).map((button) => (
-              <button
-                key={button.id}
-                onClick={() => handleQuickAction(button)}
-                disabled={isLoading}
-                className="flex items-center space-x-3 p-4 text-left bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-amber-300 hover:shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className="text-lg flex-shrink-0">{button.icon}</span>
-                <span className="text-gray-700 font-medium text-sm leading-tight">{button.label}</span>
-              </button>
-            ))}
-          </div>
-          {quickActionButtons.length > 4 && (
-            <button
-              onClick={() => setIsQuickActionsExpanded(true)}
-              className="w-full mt-3 p-3 text-sm text-amber-600 hover:text-amber-700 transition-colors font-medium flex items-center justify-center"
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              Show all {quickActionButtons.length} quick actions...
-            </button>
+          {/* Compact Quick Actions - Always visible */}
+          {!isQuickActionsExpanded && (
+            <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-hide">
+              {quickActionButtons.filter(button => button.isPrimary).map((button) => (
+                <button
+                  key={button.id}
+                  onClick={() => handleQuickAction(button)}
+                  disabled={isLoading}
+                  className={`flex-shrink-0 flex items-center space-x-2 px-3 py-2 text-left bg-white border border-gray-200 rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md ${
+                    processingQuickAction === button.id ? 'bg-amber-50 border-amber-300 shadow-md' : ''
+                  }`}
+                  title={button.label}
+                >
+                  <span className="text-sm">{button.icon}</span>
+                  <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                    {button.label.length > 12 ? button.label.substring(0, 12) + '...' : button.label}
+                  </span>
+                  {processingQuickAction === button.id && (
+                    <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+                  )}
+                </button>
+              ))}
+              {quickActionButtons.filter(button => !button.isPrimary).length > 0 && (
+                <button
+                  onClick={() => setIsQuickActionsExpanded(true)}
+                  className="flex-shrink-0 flex items-center space-x-2 px-3 py-2 text-amber-600 hover:text-amber-700 border border-amber-200 bg-amber-50 rounded-lg transition-colors shadow-sm hover:shadow-md"
+                >
+                  <span className="text-xs font-medium">+{quickActionButtons.filter(button => !button.isPrimary).length}</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Expanded Quick Actions - Organized by category */}
+          {isQuickActionsExpanded && (
+            <div className="space-y-4 max-h-80 overflow-y-auto">
+              {Object.entries(organizedQuickActions).map(([category, buttons]) => (
+                <div key={category}>
+                  <h4 className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
+                    {categoryDisplayNames[category] || category}
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {buttons.map((button) => (
+                      <button
+                        key={button.id}
+                        onClick={() => handleQuickAction(button)}
+                        disabled={isLoading}
+                        className={`flex items-center space-x-3 p-3 text-left bg-white border border-gray-200 rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          processingQuickAction === button.id ? 'bg-amber-50 border-amber-300 shadow-sm' : ''
+                        }`}
+                      >
+                        <span className="text-base flex-shrink-0">{button.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-gray-700 font-medium text-sm leading-tight block">
+                            {button.label}
+                          </span>
+                        </div>
+                        {processingQuickAction === button.id && (
+                          <div className="w-3 h-3 bg-amber-500 rounded-full animate-pulse flex-shrink-0"></div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
-      )}
+      </div>
 
       {/* Input */}
       <div className="p-6 border-t border-gray-200 bg-white">
@@ -409,6 +448,7 @@ Please try your question again in a moment, and I'll be ready to help you explor
             onClick={() => handleSendMessage(inputValue)}
             disabled={!inputValue.trim() || isLoading}
             className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-600 hover:to-orange-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
+            title="Send message (Enter)"
           >
             <Send className="w-5 h-5" />
           </button>
@@ -417,15 +457,10 @@ Please try your question again in a moment, and I'll be ready to help you explor
           <p className="text-sm text-gray-500 font-medium">
             Lio learns your reading style and gets wiser with each conversation 🦁
           </p>
-          {!showQuickActions && messages.length > 2 && (
-            <button
-              onClick={() => setIsQuickActionsExpanded(!isQuickActionsExpanded)}
-              className="text-xs text-amber-600 hover:text-amber-700 font-medium flex items-center transition-colors"
-            >
-              <Zap className="w-3 h-3 mr-1" />
-              Quick Actions
-            </button>
-          )}
+          <div className="hidden sm:flex items-center space-x-2 text-xs text-gray-400">
+            <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">Enter</kbd>
+            <span>to send</span>
+          </div>
         </div>
       </div>
     </div>
