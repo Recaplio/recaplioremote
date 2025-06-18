@@ -390,13 +390,13 @@ export default function ReaderPage() {
 
           {/* Reading Content */}
           <div className="flex-1 overflow-y-auto">
-            <div className="max-w-4xl mx-auto px-6 py-8">
-              <div className="prose prose-lg max-w-none">
+            <div className="max-w-5xl mx-auto px-8 py-8">
+              <div className="prose prose-xl max-w-none">
                 <div 
                   style={{ 
                     whiteSpace: "pre-wrap", 
                     lineHeight: "1.8",
-                    fontSize: "18px",
+                    fontSize: "19px",
                     fontFamily: "Georgia, 'Times New Roman', serif",
                     color: "#374151"
                   }}
@@ -531,7 +531,7 @@ function AIAssistantPanel({
 
       {/* Expanded View */}
       <div className={`bg-white border-l border-gray-200 flex-col transition-all duration-300 hidden md:flex shadow-lg ${
-        isMinimized ? 'w-0 overflow-hidden opacity-0' : (isExpanded ? 'w-[600px]' : 'w-[500px]')
+        isMinimized ? 'w-0 overflow-hidden opacity-0' : (isExpanded ? 'w-[800px]' : 'w-[650px]')
       }`}>
         {/* AI Panel Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-amber-50 to-orange-50 flex-shrink-0">

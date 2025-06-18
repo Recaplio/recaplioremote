@@ -378,7 +378,7 @@ Please try your question again in a moment, and I'll be ready to help you explor
       {/* Messages */}
       <div 
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-6 space-y-6"
+        className="flex-1 overflow-y-auto px-6 py-6 space-y-8"
         onScroll={handleScroll}
       >
         {messages.map((message, index) => {
@@ -392,7 +392,7 @@ Please try your question again in a moment, and I'll be ready to help you explor
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[90%] rounded-xl px-5 py-4 shadow-sm ${
+                className={`max-w-[95%] rounded-xl px-6 py-5 shadow-sm ${
                   message.role === 'user'
                     ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
                     : 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200'
@@ -400,25 +400,25 @@ Please try your question again in a moment, and I'll be ready to help you explor
               >
                 <div className="flex items-start space-x-4">
                   {message.role === 'assistant' && (
-                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center mt-1">
-                      <span className="text-lg">🦁</span>
+                    <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center mt-1">
+                      <span className="text-xl">🦁</span>
                     </div>
                   )}
                   {message.role === 'user' && (
-                    <User className="w-5 h-5 mt-1 text-white flex-shrink-0" />
+                    <User className="w-6 h-6 mt-1 text-white flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="whitespace-pre-wrap text-base leading-relaxed font-medium">
+                    <div className="whitespace-pre-wrap text-lg leading-relaxed font-medium">
                       {message.content}
                     </div>
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="text-xs opacity-70 font-medium">
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm opacity-70 font-medium">
                         {message.timestamp.toLocaleTimeString([], { 
                           hour: '2-digit', 
                           minute: '2-digit' 
                         })}
                         {enableConversationMemory && message.sessionId && (
-                          <span className="ml-2 text-xs opacity-50">
+                          <span className="ml-2 text-sm opacity-60">
                             📝 Remembered
                           </span>
                         )}
@@ -567,18 +567,18 @@ Please try your question again in a moment, and I'll be ready to help you explor
             onKeyPress={handleKeyPress}
             placeholder="Ask Lio anything about this book..."
             disabled={isLoading}
-            className="flex-1 px-4 py-3 text-base border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            className="flex-1 px-5 py-4 text-lg border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed shadow-sm placeholder-gray-400"
           />
           <button
             onClick={() => handleSendMessage(inputValue)}
             disabled={!inputValue.trim() || isLoading}
-            className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-600 hover:to-orange-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
+            className="px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-600 hover:to-orange-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
             title="Send message (Enter)"
           >
-            <Send className="w-5 h-5" />
+            <Send className="w-6 h-6" />
           </button>
         </div>
-        <div className="flex items-center justify-between mt-3">
+        <div className="flex items-center justify-between mt-4">
           <p className="text-sm text-gray-500 font-medium">
             {enableConversationMemory 
               ? "Lio learns your reading style and gets wiser with each conversation 🦁" 
