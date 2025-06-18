@@ -10,7 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import SectionSelector from "@/components/reader/SectionSelector";
 import ReadingProgress from "@/components/reader/ReadingProgress";
-import AIAssistant from "@/components/reader/AIAssistant";
+import EnhancedAIAssistant from "@/components/reader/EnhancedAIAssistant";
 import SemanticSearch from "@/components/reader/SemanticSearch";
 import { useAuth } from '@/app/components/auth/AuthProvider';
 import { type ReadingMode, type KnowledgeLens } from '@/lib/ai/client-utils';
@@ -423,7 +423,7 @@ export default function ReaderPage() {
   );
 }
 
-// New Collapsible AI Assistant Panel Component
+// New Collapsible AI Assistant Panel Component with Persistent Conversations
 function AIAssistantPanel({
   bookId,
   currentChunkIndex,
@@ -456,62 +456,65 @@ function AIAssistantPanel({
           <span className="text-2xl">🦁</span>
         </button>
 
-        {/* Mobile AI Overlay */}
-        {isMobileOpen && (
-          <div className="fixed inset-0 z-50 md:hidden">
-            {/* Backdrop */}
-            <div 
-              className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
-              onClick={() => setIsMobileOpen(false)}
-            />
-            
-            {/* AI Panel */}
-            <div className="absolute inset-x-3 top-3 bottom-3 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-              {/* Mobile Header */}
-              <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gradient-to-r from-amber-50 to-orange-50">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center shadow-md">
-                    <span className="text-xl">🦁</span>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 text-lg">Lio</h3>
-                    <p className="text-sm text-gray-600">Your Literary Companion</p>
-                  </div>
+        {/* Mobile AI Overlay - Always mount the AI assistant to preserve conversations */}
+        <div className={`fixed inset-0 z-50 md:hidden transition-all duration-300 ${
+          isMobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}>
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
+            onClick={() => setIsMobileOpen(false)}
+          />
+          
+          {/* AI Panel */}
+          <div className="absolute inset-x-3 top-3 bottom-3 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            {/* Mobile Header */}
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gradient-to-r from-amber-50 to-orange-50">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center shadow-md">
+                  <span className="text-xl">🦁</span>
                 </div>
-                
-                <button
-                  onClick={() => setIsMobileOpen(false)}
-                  className="p-3 rounded-full hover:bg-amber-100 transition-colors"
-                  title="Close"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">Lio</h3>
+                  <p className="text-sm text-gray-600">Your Literary Companion</p>
+                </div>
               </div>
+              
+              <button
+                onClick={() => setIsMobileOpen(false)}
+                className="p-3 rounded-full hover:bg-amber-100 transition-colors"
+                title="Close"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
-              {/* AI Assistant Content */}
-              <div className="flex-1 overflow-hidden">
-                <AIAssistant
-                  bookId={bookId}
-                  currentChunkIndex={currentChunkIndex}
-                  userTier={userTier}
-                  readingMode={readingMode}
-                  knowledgeLens={knowledgeLens}
-                  userId={userId}
-                />
-              </div>
+            {/* AI Assistant Content - Always mounted */}
+            <div className="flex-1 overflow-hidden">
+              <EnhancedAIAssistant
+                bookId={bookId}
+                currentChunkIndex={currentChunkIndex}
+                userTier={userTier}
+                readingMode={readingMode}
+                knowledgeLens={knowledgeLens}
+                userId={userId}
+              />
             </div>
           </div>
-        )}
+        </div>
       </>
     );
   }
 
-  // Desktop minimized version
-  if (isMinimized) {
-    return (
-      <div className="w-20 bg-white border-l border-gray-200 flex flex-col items-center py-6 hidden md:flex shadow-sm">
+  // Desktop version - Always mount the AI assistant to preserve conversations
+  return (
+    <>
+      {/* Minimized View */}
+      <div className={`bg-white border-l border-gray-200 flex-col items-center py-6 hidden md:flex shadow-sm transition-all duration-300 ${
+        isMinimized ? 'w-20' : 'w-0 overflow-hidden opacity-0'
+      }`}>
         <button
           onClick={() => setIsMinimized(false)}
           className="p-4 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 hover:from-amber-200 hover:to-orange-200 transition-all duration-200 shadow-sm hover:shadow-md"
@@ -525,63 +528,61 @@ function AIAssistantPanel({
           </span>
         </div>
       </div>
-    );
-  }
 
-  // Desktop expanded/collapsed version - Now with better sizing for hero feature
-  return (
-    <div className={`bg-white border-l border-gray-200 flex-col transition-all duration-300 hidden md:flex shadow-lg ${
-      isExpanded ? 'w-[600px]' : 'w-[500px]'
-    }`}>
-      {/* AI Panel Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-amber-50 to-orange-50">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center shadow-md">
-            <span className="text-xl">🦁</span>
+      {/* Expanded View */}
+      <div className={`bg-white border-l border-gray-200 flex-col transition-all duration-300 hidden md:flex shadow-lg ${
+        isMinimized ? 'w-0 overflow-hidden opacity-0' : (isExpanded ? 'w-[600px]' : 'w-[500px]')
+      }`}>
+        {/* AI Panel Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-amber-50 to-orange-50 flex-shrink-0">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center shadow-md">
+              <span className="text-xl">🦁</span>
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-lg">Lio</h3>
+              <p className="text-sm text-gray-600">Your Literary Companion</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold text-gray-900 text-lg">Lio</h3>
-            <p className="text-sm text-gray-600">Your Literary Companion</p>
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-2 rounded-lg hover:bg-amber-100 transition-colors"
+              title={isExpanded ? "Collapse" : "Expand"}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {isExpanded ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                )}
+              </svg>
+            </button>
+            <button
+              onClick={() => setIsMinimized(true)}
+              className="p-2 rounded-lg hover:bg-amber-100 transition-colors"
+              title="Minimize"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+              </svg>
+            </button>
           </div>
         </div>
-        
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-2 rounded-lg hover:bg-amber-100 transition-colors"
-            title={isExpanded ? "Collapse" : "Expand"}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {isExpanded ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              )}
-            </svg>
-          </button>
-          <button
-            onClick={() => setIsMinimized(true)}
-            className="p-2 rounded-lg hover:bg-amber-100 transition-colors"
-            title="Minimize"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-            </svg>
-          </button>
+
+        {/* AI Assistant Content - Always mounted for conversation persistence */}
+        <div className="flex-1 overflow-hidden">
+          <EnhancedAIAssistant
+            bookId={bookId}
+            currentChunkIndex={currentChunkIndex}
+            userTier={userTier}
+            readingMode={readingMode}
+            knowledgeLens={knowledgeLens}
+            userId={userId}
+          />
         </div>
       </div>
-
-      {/* AI Assistant Content */}
-      <div className="flex-1 overflow-hidden">
-        <AIAssistant
-          bookId={bookId}
-          currentChunkIndex={currentChunkIndex}
-          userTier={userTier}
-          readingMode={readingMode}
-          knowledgeLens={knowledgeLens}
-          userId={userId}
-        />
-      </div>
-    </div>
+    </>
   );
 } 
