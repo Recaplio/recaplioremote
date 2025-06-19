@@ -61,7 +61,7 @@ export default function EnhancedAIAssistant({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const lastAssistantMessageRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const quickActionButtons = getQuickActionButtons(readingMode, knowledgeLens);
 
@@ -327,6 +327,25 @@ Please try your question again in a moment, and I'll be ready to help you explor
     }
   };
 
+  // Auto-resize textarea function
+  const autoResizeTextarea = useCallback(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 150)}px`;
+    }
+  }, []);
+
+  // Handle input change with auto-resize
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputValue(e.target.value);
+    autoResizeTextarea();
+  };
+
+  // Auto-resize on mount and when input value changes
+  useEffect(() => {
+    autoResizeTextarea();
+  }, [inputValue, autoResizeTextarea]);
+
   // Organize quick actions by category for better UX
   const organizedQuickActions = quickActionButtons.reduce((acc, button) => {
     const category = button.category || 'General';
@@ -378,7 +397,7 @@ Please try your question again in a moment, and I'll be ready to help you explor
       {/* Messages */}
       <div 
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto px-6 py-6 space-y-8"
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-6"
         onScroll={handleScroll}
       >
         {messages.map((message, index) => {
@@ -392,7 +411,7 @@ Please try your question again in a moment, and I'll be ready to help you explor
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[95%] rounded-xl px-6 py-5 shadow-sm ${
+                className={`max-w-[98%] rounded-xl px-5 py-4 shadow-sm ${
                   message.role === 'user'
                     ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
                     : 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200'
@@ -408,7 +427,7 @@ Please try your question again in a moment, and I'll be ready to help you explor
                     <User className="w-6 h-6 mt-1 text-white flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="whitespace-pre-wrap text-lg leading-relaxed font-medium">
+                    <div className="whitespace-pre-wrap text-base leading-relaxed">
                       {message.content}
                     </div>
                     <div className="flex items-center justify-between mt-4">
@@ -486,57 +505,57 @@ Please try your question again in a moment, and I'll be ready to help you explor
       </div>
 
       {/* Quick Actions */}
-      <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-700 flex items-center">
-            <Zap className="w-4 h-4 mr-2 text-amber-500" />
+      <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold text-gray-700 flex items-center">
+            <Zap className="w-3 h-3 mr-1 text-amber-500" />
             Quick Actions
             {enableConversationMemory && conversationMemory && (
-              <span className="ml-2 text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
+              <span className="ml-2 text-xs text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">
                 Personalized
               </span>
             )}
           </h3>
           <button
             onClick={() => setIsQuickActionsExpanded(!isQuickActionsExpanded)}
-            className="p-1 hover:bg-gray-200 rounded-lg transition-colors"
+            className="p-0.5 hover:bg-gray-200 rounded transition-colors"
           >
             {isQuickActionsExpanded ? (
-              <ChevronUp className="w-4 h-4 text-gray-600" />
+              <ChevronUp className="w-3 h-3 text-gray-600" />
             ) : (
-              <ChevronDown className="w-4 h-4 text-gray-600" />
+              <ChevronDown className="w-3 h-3 text-gray-600" />
             )}
           </button>
         </div>
 
-        <div className={`grid gap-2 transition-all duration-200 ${
+        <div className={`grid gap-1.5 transition-all duration-200 ${
           isQuickActionsExpanded ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'
         }`}>
           {Object.entries(organizedQuickActions).map(([category, buttons]) => (
-            <div key={category} className={isQuickActionsExpanded ? 'space-y-2' : ''}>
+            <div key={category} className={isQuickActionsExpanded ? 'space-y-1.5' : ''}>
               {isQuickActionsExpanded && (
                 <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wide">
                   {categoryDisplayNames[category] || category}
                 </h4>
               )}
-              <div className={`grid gap-2 ${isQuickActionsExpanded ? 'grid-cols-1' : 'grid-cols-1'}`}>
+              <div className={`grid gap-1.5 ${isQuickActionsExpanded ? 'grid-cols-1' : 'grid-cols-1'}`}>
                 {buttons.slice(0, isQuickActionsExpanded ? buttons.length : 1).map((button) => (
-                  <button
-                    key={button.id}
-                    onClick={() => handleQuickAction(button)}
-                    disabled={isLoading}
-                    className={`px-3 py-2 text-sm rounded-lg border transition-colors text-left ${
-                      processingQuickAction === button.id
-                        ? 'bg-amber-100 border-amber-300 text-amber-800'
-                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      {processingQuickAction === button.id && (
-                        <div className="w-3 h-3 border border-amber-600 border-t-transparent rounded-full animate-spin"></div>
-                      )}
-                      <span className="truncate">{button.label}</span>
-                    </div>
+                                      <button
+                      key={button.id}
+                      onClick={() => handleQuickAction(button)}
+                      disabled={isLoading}
+                      className={`px-2 py-1.5 text-xs rounded border transition-colors text-left ${
+                        processingQuickAction === button.id
+                          ? 'bg-amber-100 border-amber-300 text-amber-800'
+                          : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                                          <div className="flex items-center space-x-1.5">
+                        {processingQuickAction === button.id && (
+                          <div className="w-2.5 h-2.5 border border-amber-600 border-t-transparent rounded-full animate-spin"></div>
+                        )}
+                        <span className="truncate">{button.label}</span>
+                      </div>
                   </button>
                 ))}
               </div>
@@ -549,37 +568,38 @@ Please try your question again in a moment, and I'll be ready to help you explor
       {showScrollToTop && (
         <button
           onClick={scrollToLastAssistantMessage}
-          className="absolute right-6 bottom-32 p-3 bg-amber-500 text-white rounded-full shadow-lg hover:bg-amber-600 transition-colors z-10"
+          className="absolute right-4 bottom-28 p-2.5 bg-amber-500 text-white rounded-full shadow-lg hover:bg-amber-600 transition-colors z-10"
           title="Scroll to Lio's latest response"
         >
-          <ChevronUp className="w-5 h-5" />
+          <ChevronUp className="w-4 h-4" />
         </button>
       )}
 
       {/* Input Area */}
-      <div className="p-6 border-t border-gray-200 bg-white">
-        <div className="flex space-x-3">
-          <input
+      <div className="p-4 border-t border-gray-200 bg-white">
+        <div className="flex items-end space-x-3">
+          <textarea
             ref={inputRef}
-            type="text"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={handleInputChange}
             onKeyPress={handleKeyPress}
             placeholder="Ask Lio anything about this book..."
             disabled={isLoading}
-            className="flex-1 px-5 py-4 text-lg border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed shadow-sm placeholder-gray-400"
+            rows={1}
+            className="flex-1 px-4 py-3 text-base border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed shadow-sm placeholder-gray-400 resize-none overflow-hidden min-h-[44px] max-h-[150px]"
+            style={{ height: 'auto' }}
           />
           <button
             onClick={() => handleSendMessage(inputValue)}
             disabled={!inputValue.trim() || isLoading}
-            className="px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-600 hover:to-orange-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
+            className="px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-600 hover:to-orange-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md flex-shrink-0"
             title="Send message (Enter)"
           >
-            <Send className="w-6 h-6" />
+            <Send className="w-5 h-5" />
           </button>
         </div>
-        <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-gray-500 font-medium">
+        <div className="flex items-center justify-between mt-3">
+          <p className="text-xs text-gray-500 font-medium">
             {enableConversationMemory 
               ? "Lio learns your reading style and gets wiser with each conversation 🦁" 
               : "Ask Lio about characters, themes, or plot points 🦁"
